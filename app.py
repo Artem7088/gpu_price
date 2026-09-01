@@ -6,6 +6,7 @@ and availability/utilization metrics in real time.
 
 import os
 import sys
+import hashlib
 
 import datetime
 import io
@@ -132,6 +133,11 @@ def mask_api_key(key: str) -> str:
 
 
 
+def generate_session_token(password: str) -> str:
+    """Generates a secure deterministic session hash for URL persistence."""
+    return hashlib.sha256((password + "_vast_session_salt_2026").encode("utf-8")).hexdigest()[:24]
+
+
 def check_password() -> bool:
     """Returns True if the user is authenticated, else displays a password login form."""
     configured_password = ""
@@ -143,17 +149,35 @@ def check_password() -> bool:
     if not configured_password:
         configured_password = "vast_password_2026"
 
+    expected_token = generate_session_token(configured_password)
+
+    # 1. Check if authenticated in current session state
+    if st.session_state.get("authenticated", False):
+        return True
+
+    # 2. Check persistent session via query params (URL token)
+    try:
+        if st.query_params.get("auth") == expected_token:
+            st.session_state["authenticated"] = True
+            return True
+    except Exception:
+        pass
+
     def password_entered():
-        if st.session_state.get("password_input", "") == configured_password:
+        entered_pass = st.session_state.get("password_input", "")
+        remember_me = st.session_state.get("remember_me_input", True)
+        if entered_pass == configured_password:
             st.session_state["authenticated"] = True
             st.session_state.pop("password_input", None)
             st.session_state.pop("auth_error", None)
+            if remember_me:
+                try:
+                    st.query_params["auth"] = expected_token
+                except Exception:
+                    pass
         else:
             st.session_state["authenticated"] = False
             st.session_state["auth_error"] = True
-
-    if st.session_state.get("authenticated", False):
-        return True
 
     # Render Clean Login Screen
     st.markdown(
@@ -176,12 +200,13 @@ def check_password() -> bool:
                 key="password_input",
                 placeholder="Введіть пароль доступу...",
             )
+            st.checkbox("Запам'ятати мене (зберегти сесію)", value=True, key="remember_me_input")
             submit_login = st.form_submit_button("🔐 Увійти в систему", use_container_width=True, on_click=password_entered)
 
         if st.session_state.get("auth_error", False):
             st.error("❌ Невірний пароль! Спробуйте ще раз.")
 
-        st.caption("🔒 Захищено за допомогою Streamlit Secrets.")
+        st.caption("🔒 Сесія захищена та зберігається на цьому пристрої.")
 
     return False
 
@@ -793,6 +818,10 @@ with st.sidebar:
     st.markdown("---")
     if st.button("🚪 Вийти з системи", use_container_width=True, help="Завершити сесію та заблокувати доступ"):
         st.session_state["authenticated"] = False
+        try:
+            st.query_params.clear()
+        except Exception:
+            pass
         st.rerun()
 
 
