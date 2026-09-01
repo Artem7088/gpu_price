@@ -493,12 +493,14 @@ def create_roi_payback_chart(roi_df: pd.DataFrame) -> go.Figure:
     if roi_df.empty:
         return go.Figure()
 
-    valid_df = roi_df[roi_df["Окупність (місяців)"] != "Не окупається"].copy()
+    valid_df = roi_df[pd.notnull(roi_df["Окупність (місяців)"])].copy()
     if valid_df.empty:
         return go.Figure()
 
-    valid_df["Окупність_num"] = pd.to_numeric(valid_df["Окупність (місяців)"])
-    valid_df = valid_df.sort_values(by="Окупність_num", ascending=True)
+    valid_df["Окупність_num"] = pd.to_numeric(valid_df["Окупність (місяців)"], errors="coerce")
+    valid_df = valid_df.dropna(subset=["Окупність_num"]).sort_values(by="Окупність_num", ascending=True)
+    if valid_df.empty:
+        return go.Figure()
 
     fig = px.bar(
         valid_df,
@@ -1477,11 +1479,15 @@ with tab_profit:
             st.markdown("##### 🏆 Ключові показники прибутковості")
             best_profit_row = roi_result_df.sort_values(by="Чистий прибуток ($/міс)", ascending=False).iloc[0]
 
-            profitable_cards = roi_result_df[roi_result_df["Окупність (місяців)"] != "Не окупається"].copy()
+            profitable_cards = roi_result_df[pd.notnull(roi_result_df["Окупність (місяців)"])].copy()
             if not profitable_cards.empty:
-                profitable_cards["pay_num"] = pd.to_numeric(profitable_cards["Окупність (місяців)"])
-                best_payback_row = profitable_cards.sort_values(by="pay_num", ascending=True).iloc[0]
-                best_payback_text = f"{best_payback_row['Карта']} ({best_payback_row['pay_num']:.1f} міс.)"
+                profitable_cards["pay_num"] = pd.to_numeric(profitable_cards["Окупність (місяців)"], errors="coerce")
+                profitable_cards = profitable_cards.dropna(subset=["pay_num"])
+                if not profitable_cards.empty:
+                    best_payback_row = profitable_cards.sort_values(by="pay_num", ascending=True).iloc[0]
+                    best_payback_text = f"{best_payback_row['Карта']} ({best_payback_row['pay_num']:.1f} міс.)"
+                else:
+                    best_payback_text = "—"
             else:
                 best_payback_text = "—"
 
@@ -1523,7 +1529,8 @@ with tab_profit:
                     "Чистий прибуток ($/день)": st.column_config.NumberColumn(format="$%.2f"),
                     "Чистий прибуток ($/міс)": st.column_config.NumberColumn(format="$%.2f"),
                     "Чистий прибуток ($/рік)": st.column_config.NumberColumn(format="$%.2f"),
-                    "Окупність (місяців)": st.column_config.TextColumn("Окупність"),
+                    "Окупність (місяців)": st.column_config.NumberColumn("Окупність (міс.)", format="%.1f", help="Термін окупності у місяцях"),
+                    "Окупність (днів)": st.column_config.NumberColumn("Окупність (днів)", format="%d", help="Термін окупності у днях"),
                     "Річний ROI (%)": st.column_config.NumberColumn(format="%.1f%%"),
                     "Маржа (%)": st.column_config.NumberColumn(format="%.1f%%"),
                     "Граничне світло ($/кВт·год)": st.column_config.NumberColumn(format="$%.4f", help="Максимальна ціна за кВт·год, при якій хостинг залишається беззбитковим"),
@@ -1580,13 +1587,18 @@ with tab_profit:
             st.markdown("##### 🏆 Ключові показники прибутковості серверів/ригів")
             best_cfg_profit = config_roi_df.sort_values(by="Чистий прибуток ($/міс)", ascending=False).iloc[0]
 
-            prof_cfgs = config_roi_df[config_roi_df["Окупність (місяців)"] != "Не окупається"].copy()
+            prof_cfgs = config_roi_df[pd.notnull(config_roi_df["Окупність (місяців)"])].copy()
             if not prof_cfgs.empty:
-                prof_cfgs["pay_num"] = pd.to_numeric(prof_cfgs["Окупність (місяців)"])
-                best_cfg_payback = prof_cfgs.sort_values(by="pay_num", ascending=True).iloc[0]
-                best_cfg_payback_text = f"{best_cfg_payback['Конфігурація']} ({best_cfg_payback['pay_num']:.1f} міс.)"
-                best_cfg_roi = prof_cfgs.sort_values(by="Річний ROI (%)", ascending=False).iloc[0]
-                best_cfg_roi_text = f"{best_cfg_roi['Конфігурація']} ({best_cfg_roi['Річний ROI (%)']}%)"
+                prof_cfgs["pay_num"] = pd.to_numeric(prof_cfgs["Окупність (місяців)"], errors="coerce")
+                prof_cfgs = prof_cfgs.dropna(subset=["pay_num"])
+                if not prof_cfgs.empty:
+                    best_cfg_payback = prof_cfgs.sort_values(by="pay_num", ascending=True).iloc[0]
+                    best_cfg_payback_text = f"{best_cfg_payback['Конфігурація']} ({best_cfg_payback['pay_num']:.1f} міс.)"
+                    best_cfg_roi = prof_cfgs.sort_values(by="Річний ROI (%)", ascending=False).iloc[0]
+                    best_cfg_roi_text = f"{best_cfg_roi['Конфігурація']} ({best_cfg_roi['Річний ROI (%)']}%)"
+                else:
+                    best_cfg_payback_text = "—"
+                    best_cfg_roi_text = "—"
             else:
                 best_cfg_payback_text = "—"
                 best_cfg_roi_text = "—"
@@ -1626,7 +1638,8 @@ with tab_profit:
                     "Чистий прибуток ($/день)": st.column_config.NumberColumn(format="$%.2f"),
                     "Чистий прибуток ($/міс)": st.column_config.NumberColumn(format="$%.2f"),
                     "Чистий прибуток ($/рік)": st.column_config.NumberColumn(format="$%.2f"),
-                    "Окупність (місяців)": st.column_config.TextColumn("Окупність"),
+                    "Окупність (місяців)": st.column_config.NumberColumn("Окупність (міс.)", format="%.1f", help="Термін окупності у місяцях"),
+                    "Окупність (днів)": st.column_config.NumberColumn("Окупність (днів)", format="%d", help="Термін окупності у днях"),
                     "Річний ROI (%)": st.column_config.NumberColumn(format="%.1f%%"),
                     "Маржа (%)": st.column_config.NumberColumn(format="%.1f%%"),
                     "Всього серверів (шт)": st.column_config.NumberColumn(format="%d"),
