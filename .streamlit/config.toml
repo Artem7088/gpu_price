@@ -11,4 +11,7 @@ enableCORS = false
 enableXsrfProtection = false
 fileWatcherType = "none"
 runOnSave = false
+enableStaticServing = true
+maxUploadSize = 200
+
 
