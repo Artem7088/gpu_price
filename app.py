@@ -654,30 +654,6 @@ with st.sidebar:
         st.session_state["last_market_fetch_ts"] = datetime.datetime.now()
         st.rerun()
 
-    # Database Info in Sidebar
-    st.markdown("---")
-    st.markdown("#### 💾 База даних (SQLite)")
-    db_info = VastAIClient.get_db_stats_info()
-    last_db_snap = db_info.get("last_snapshot")
-    db_snap_relative = format_time_ago(last_db_snap)
-    st.caption(
-        f"• **Розмір БД:** {db_info['db_size_mb']} MB\n"
-        f"• **Зрізів ринку:** {db_info['total_snapshots']}\n"
-        f"• **Записів серверів:** {db_info['total_raw_rows']:,}\n"
-        f"• **Останній зріз у БД:** {db_snap_relative} ({last_db_snap or '—'})"
-    )
-
-    if st.button("💾 Записати зріз у БД зараз", use_container_width=True):
-        client = VastAIClient(api_key=api_key_input)
-        with st.spinner("Збереження датасету ринку в базу..."):
-            fresh_df = client.fetch_all_selected_offers(selected_gpus=None)
-            VastAIClient.record_full_dataset_snapshot(fresh_df)
-            st.session_state["last_market_fetch_ts"] = datetime.datetime.now()
-            st.success("✅ Датасет успішно збережено в SQLite!")
-            st.cache_data.clear()
-            st.rerun()
-
-
     st.markdown("---")
 
     # GPU Model Selection with Persistence and Quick Presets
@@ -757,7 +733,6 @@ with st.sidebar:
         "saved_column_orders": st.session_state.get("saved_column_orders", {}),
     }
 
-
     if current_prefs != saved_prefs:
         save_preferences(current_prefs)
         st.toast("💾 Налаштування та обрані карти збережено!", icon="✅")
@@ -781,6 +756,29 @@ with st.sidebar:
 
     price_label = "$/год за 1 GPU" if price_mode == "per_gpu" else "$/год за сервер"
     price_col = "dph_per_gpu" if price_mode == "per_gpu" else "dph_total"
+
+    # Database Info in Sidebar (at the very bottom)
+    st.markdown("---")
+    st.markdown("#### 💾 База даних (SQLite)")
+    db_info = VastAIClient.get_db_stats_info()
+    last_db_snap = db_info.get("last_snapshot")
+    db_snap_relative = format_time_ago(last_db_snap)
+    st.caption(
+        f"• **Розмір БД:** {db_info['db_size_mb']} MB\n"
+        f"• **Зрізів ринку:** {db_info['total_snapshots']}\n"
+        f"• **Записів серверів:** {db_info['total_raw_rows']:,}\n"
+        f"• **Останній зріз у БД:** {db_snap_relative} ({last_db_snap or '—'})"
+    )
+
+    if st.button("💾 Записати зріз у БД зараз", use_container_width=True):
+        client = VastAIClient(api_key=api_key_input)
+        with st.spinner("Збереження датасету ринку в базу..."):
+            fresh_df = client.fetch_all_selected_offers(selected_gpus=None)
+            VastAIClient.record_full_dataset_snapshot(fresh_df)
+            st.session_state["last_market_fetch_ts"] = datetime.datetime.now()
+            st.success("✅ Датасет успішно збережено в SQLite!")
+            st.cache_data.clear()
+            st.rerun()
 
     st.markdown("---")
     if st.button("🚪 Вийти з системи", use_container_width=True, help="Завершити сесію та заблокувати доступ"):

@@ -936,6 +936,7 @@ class VastAIClient:
             conn = sqlite3.connect(db_path)
             c = conn.cursor()
 
+            # Check raw_offers_history
             c.execute("SELECT COUNT(*), MIN(snapshot_time), MAX(snapshot_time) FROM raw_offers_history")
             raw_res = c.fetchone()
             if raw_res and raw_res[0]:
@@ -943,10 +944,15 @@ class VastAIClient:
                 info["first_snapshot"] = raw_res[1]
                 info["last_snapshot"] = raw_res[2]
 
-            c.execute("SELECT COUNT(DISTINCT timestamp) FROM snapshot_stats")
+            # Check snapshot_stats
+            c.execute("SELECT COUNT(DISTINCT timestamp), MIN(timestamp), MAX(timestamp) FROM snapshot_stats")
             stats_res = c.fetchone()
             if stats_res and stats_res[0]:
-                info["total_snapshots"] = stats_res[0]
+                info["total_snapshots"] = max(stats_res[0], info["total_snapshots"])
+                if not info["first_snapshot"] and stats_res[1]:
+                    info["first_snapshot"] = stats_res[1]
+                if not info["last_snapshot"] and stats_res[2]:
+                    info["last_snapshot"] = stats_res[2]
 
             conn.close()
         except Exception as e:
