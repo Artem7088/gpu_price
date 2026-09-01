@@ -1192,31 +1192,33 @@ class VastAIClient:
 
 
 GPU_DEFAULT_SPECS = {
-    # RTX 40 & 50 Series
-    "RTX 5090": {"load_w": 600, "idle_w": 45, "price_usd": 2400.0},
-    "RTX 5080": {"load_w": 400, "idle_w": 35, "price_usd": 1200.0},
-    "RTX 5070 Ti": {"load_w": 300, "idle_w": 25, "price_usd": 850.0},
-    "RTX 5070": {"load_w": 250, "idle_w": 25, "price_usd": 700.0},
+    # RTX 50 Series (GPUpoet & market min)
+    "RTX 5090": {"load_w": 600, "idle_w": 45, "price_usd": 2850.0},
+    "RTX 5080": {"load_w": 400, "idle_w": 35, "price_usd": 933.0},
+    "RTX 5070 Ti": {"load_w": 300, "idle_w": 25, "price_usd": 683.0},
+    "RTX 5070": {"load_w": 250, "idle_w": 25, "price_usd": 549.0},
+
+    # RTX 40 Series (GPUpoet & market min)
     "RTX 4090": {"load_w": 450, "idle_w": 35, "price_usd": 1850.0},
     "RTX 4090D": {"load_w": 425, "idle_w": 35, "price_usd": 1680.0},
-    "RTX 4080 Super": {"load_w": 320, "idle_w": 25, "price_usd": 1030.0},
-    "RTX 4080": {"load_w": 320, "idle_w": 25, "price_usd": 940.0},
-    "RTX 4070 Ti Super": {"load_w": 285, "idle_w": 20, "price_usd": 780.0},
-    "RTX 4070 Ti": {"load_w": 285, "idle_w": 20, "price_usd": 610.0},
-    "RTX 4070 Super": {"load_w": 220, "idle_w": 20, "price_usd": 580.0},
-    "RTX 4070": {"load_w": 200, "idle_w": 20, "price_usd": 520.0},
-    "RTX 4060 Ti": {"load_w": 160, "idle_w": 15, "price_usd": 380.0},
-    "RTX 4060": {"load_w": 115, "idle_w": 15, "price_usd": 270.0},
+    "RTX 4080 Super": {"load_w": 320, "idle_w": 25, "price_usd": 930.0},
+    "RTX 4080": {"load_w": 320, "idle_w": 25, "price_usd": 837.0},
+    "RTX 4070 Ti Super": {"load_w": 285, "idle_w": 20, "price_usd": 698.0},
+    "RTX 4070 Ti": {"load_w": 285, "idle_w": 20, "price_usd": 497.0},
+    "RTX 4070 Super": {"load_w": 220, "idle_w": 20, "price_usd": 549.0},
+    "RTX 4070": {"load_w": 200, "idle_w": 20, "price_usd": 419.0},
+    "RTX 4060 Ti": {"load_w": 160, "idle_w": 15, "price_usd": 339.0},
+    "RTX 4060": {"load_w": 115, "idle_w": 15, "price_usd": 207.0},
 
-    # RTX 30 Series
-    "RTX 3090 Ti": {"load_w": 450, "idle_w": 35, "price_usd": 820.0},
-    "RTX 3090": {"load_w": 350, "idle_w": 30, "price_usd": 680.0},
-    "RTX 3080 Ti": {"load_w": 350, "idle_w": 30, "price_usd": 430.0},
-    "RTX 3080": {"load_w": 320, "idle_w": 30, "price_usd": 340.0},
-    "RTX 3070 Ti": {"load_w": 290, "idle_w": 25, "price_usd": 270.0},
-    "RTX 3070": {"load_w": 220, "idle_w": 25, "price_usd": 235.0},
-    "RTX 3060 Ti": {"load_w": 200, "idle_w": 20, "price_usd": 215.0},
-    "RTX 3060": {"load_w": 170, "idle_w": 20, "price_usd": 190.0},
+    # RTX 30 Series (GPUpoet & market min)
+    "RTX 3090 Ti": {"load_w": 450, "idle_w": 35, "price_usd": 1149.0},
+    "RTX 3090": {"load_w": 350, "idle_w": 30, "price_usd": 780.0},
+    "RTX 3080 Ti": {"load_w": 350, "idle_w": 30, "price_usd": 407.0},
+    "RTX 3080": {"load_w": 320, "idle_w": 30, "price_usd": 295.0},
+    "RTX 3070 Ti": {"load_w": 290, "idle_w": 25, "price_usd": 269.0},
+    "RTX 3070": {"load_w": 220, "idle_w": 25, "price_usd": 197.0},
+    "RTX 3060 Ti": {"load_w": 200, "idle_w": 20, "price_usd": 189.0},
+    "RTX 3060": {"load_w": 170, "idle_w": 20, "price_usd": 175.0},
 
     # RTX 20 & GTX Series
     "RTX 2080 Ti": {"load_w": 250, "idle_w": 25, "price_usd": 225.0},
@@ -1231,69 +1233,72 @@ GPU_DEFAULT_SPECS = {
     "GTX 1080 Ti": {"load_w": 250, "idle_w": 25, "price_usd": 120.0},
     "GTX 1080": {"load_w": 180, "idle_w": 20, "price_usd": 85.0},
 
-    # Tesla & Data Center
-    "Tesla V100 16GB": {"load_w": 250, "idle_w": 40, "price_usd": 230.0},
-    "Tesla V100 32GB": {"load_w": 250, "idle_w": 40, "price_usd": 560.0},
+    # Tesla & Data Center (GPUpoet min)
+    "Tesla V100 16GB": {"load_w": 250, "idle_w": 40, "price_usd": 204.0},
+    "Tesla V100 32GB": {"load_w": 250, "idle_w": 40, "price_usd": 580.0},
     "Tesla T4": {"load_w": 70, "idle_w": 15, "price_usd": 290.0},
-    "Tesla P100": {"load_w": 250, "idle_w": 35, "price_usd": 130.0},
+    "Tesla P100": {"load_w": 250, "idle_w": 35, "price_usd": 57.0},
     "Tesla P40": {"load_w": 250, "idle_w": 35, "price_usd": 115.0},
-    "Tesla P4": {"load_w": 75, "idle_w": 15, "price_usd": 80.0},
+    "Tesla P4": {"load_w": 75, "idle_w": 15, "price_usd": 75.0},
     "Tesla K80": {"load_w": 300, "idle_w": 40, "price_usd": 35.0},
     "Tesla M40": {"load_w": 250, "idle_w": 35, "price_usd": 50.0},
 
-    # Workstation & AI
-    "RTX 6000Ada": {"load_w": 300, "idle_w": 35, "price_usd": 5900.0},
+    # Workstation & AI (GPUpoet min)
+    "RTX 6000Ada": {"load_w": 300, "idle_w": 35, "price_usd": 5633.0},
     "RTX 5000Ada": {"load_w": 250, "idle_w": 30, "price_usd": 3600.0},
     "RTX 4000Ada": {"load_w": 130, "idle_w": 20, "price_usd": 1250.0},
-    "RTX A6000": {"load_w": 300, "idle_w": 35, "price_usd": 2850.0},
-    "RTX A5000": {"load_w": 230, "idle_w": 30, "price_usd": 1680.0},
-    "RTX A4000": {"load_w": 140, "idle_w": 20, "price_usd": 720.0},
-    "RTX A2000": {"load_w": 70, "idle_w": 15, "price_usd": 290.0},
+    "RTX A6000": {"load_w": 300, "idle_w": 35, "price_usd": 3015.0},
+    "RTX A5000": {"load_w": 230, "idle_w": 30, "price_usd": 1480.0},
+    "RTX A4000": {"load_w": 140, "idle_w": 20, "price_usd": 620.0},
+    "RTX A2000": {"load_w": 70, "idle_w": 15, "price_usd": 260.0},
     "Quadro RTX 8000": {"load_w": 260, "idle_w": 30, "price_usd": 1650.0},
     "Quadro RTX 6000": {"load_w": 260, "idle_w": 30, "price_usd": 850.0},
-    "A100 (All variants)": {"load_w": 400, "idle_w": 50, "price_usd": 6500.0},
-    "A100 80GB": {"load_w": 400, "idle_w": 50, "price_usd": 8200.0},
+    "A100 (All variants)": {"load_w": 400, "idle_w": 50, "price_usd": 5950.0},
+    "A100 80GB": {"load_w": 400, "idle_w": 50, "price_usd": 8049.0},
     "A100 40GB": {"load_w": 300, "idle_w": 45, "price_usd": 3900.0},
     "A800": {"load_w": 400, "idle_w": 50, "price_usd": 7100.0},
     "A40": {"load_w": 300, "idle_w": 35, "price_usd": 3200.0},
     "L40S": {"load_w": 350, "idle_w": 40, "price_usd": 7100.0},
     "L40": {"load_w": 300, "idle_w": 35, "price_usd": 5600.0},
     "L4": {"load_w": 72, "idle_w": 15, "price_usd": 1850.0},
-    "H100 (All variants)": {"load_w": 700, "idle_w": 70, "price_usd": 25500.0},
-    "H100 SXM": {"load_w": 700, "idle_w": 70, "price_usd": 26500.0},
-    "H100 PCIE": {"load_w": 350, "idle_w": 50, "price_usd": 23900.0},
+    "H100 (All variants)": {"load_w": 700, "idle_w": 70, "price_usd": 22500.0},
+    "H100 SXM": {"load_w": 700, "idle_w": 70, "price_usd": 25500.0},
+    "H100 PCIE": {"load_w": 350, "idle_w": 50, "price_usd": 19000.0},
     "H100 NVL": {"load_w": 700, "idle_w": 70, "price_usd": 30500.0},
     "H800": {"load_w": 700, "idle_w": 70, "price_usd": 19500.0},
     "H200": {"load_w": 700, "idle_w": 70, "price_usd": 34500.0},
+
+    # AMD & Intel (GPUpoet min)
     "AMD MI50": {"load_w": 300, "idle_w": 40, "price_usd": 135.0},
-    "AMD MI100": {"load_w": 300, "idle_w": 40, "price_usd": 1180.0},
+    "AMD MI100": {"load_w": 300, "idle_w": 40, "price_usd": 1050.0},
     "AMD MI210": {"load_w": 300, "idle_w": 40, "price_usd": 2650.0},
     "AMD MI300X": {"load_w": 750, "idle_w": 80, "price_usd": 16500.0},
-    "Radeon RX 7900 XTX": {"load_w": 355, "idle_w": 35, "price_usd": 810.0},
-    "Radeon RX 7900 XT": {"load_w": 315, "idle_w": 30, "price_usd": 630.0},
+    "Radeon RX 7900 XTX": {"load_w": 355, "idle_w": 35, "price_usd": 747.0},
+    "Radeon RX 7900 XT": {"load_w": 315, "idle_w": 30, "price_usd": 522.0},
+    "Radeon RX 6800 XT": {"load_w": 300, "idle_w": 30, "price_usd": 272.0},
 }
 
 
 
 
 def get_gpu_specs(gpu_name: str) -> Dict[str, float]:
-    """Returns default load power, idle power, and purchase price for a GPU calibrated to wholesale/secondary market."""
+    """Returns default load power, idle power, and purchase price for a GPU calibrated to GPUpoet & wholesale market minimums."""
     if gpu_name in GPU_DEFAULT_SPECS:
         return GPU_DEFAULT_SPECS[gpu_name].copy()
     # Intelligent fallbacks based on name
     if "4090" in gpu_name:
         return {"load_w": 450, "idle_w": 35, "price_usd": 1850.0}
     if "3090" in gpu_name:
-        return {"load_w": 350, "idle_w": 30, "price_usd": 680.0}
+        return {"load_w": 350, "idle_w": 30, "price_usd": 780.0}
     if "5090" in gpu_name:
-        return {"load_w": 600, "idle_w": 45, "price_usd": 2400.0}
+        return {"load_w": 600, "idle_w": 45, "price_usd": 2850.0}
     if "V100" in gpu_name:
-        return {"load_w": 250, "idle_w": 40, "price_usd": 390.0}
+        return {"load_w": 250, "idle_w": 40, "price_usd": 204.0}
     if "A100" in gpu_name:
-        return {"load_w": 400, "idle_w": 50, "price_usd": 6500.0}
+        return {"load_w": 400, "idle_w": 50, "price_usd": 5950.0}
     if "H100" in gpu_name or "H200" in gpu_name:
-        return {"load_w": 700, "idle_w": 70, "price_usd": 25500.0}
-    return {"load_w": 250, "idle_w": 25, "price_usd": 450.0}
+        return {"load_w": 700, "idle_w": 70, "price_usd": 22500.0}
+    return {"load_w": 250, "idle_w": 25, "price_usd": 400.0}
 
 
 
