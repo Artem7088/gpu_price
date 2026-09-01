@@ -141,5 +141,5 @@ streamlit run app.py
 
 Веб-інтерфейс локально доступний за адресою:
 🔗 **[http://localhost:8501](http://localhost:8501)**
-*(Локальний пароль за замовчуванням: `vast_password_2026` або з `.streamlit/secrets.toml`)*
+*(Пароль доступу налаштовується у файлі `.streamlit/secrets.toml`)*
 
