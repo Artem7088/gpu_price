@@ -160,8 +160,8 @@ GPU_API_NAME_MAP = {
     "H800": ["H800"],
     "B200": ["B200"],
     "B100": ["B100"],
-    "RTX A6000": ["RTX A6000", "RTX 6000Ada", "RTX PRO 6000 S", "RTX PRO 6000 WS", "RTX PRO 6000 Max-Q", "Q RTX 6000"],
-    "RTX 6000Ada": ["RTX 6000Ada"],
+    "RTX A6000": ["RTX A6000"],
+    "RTX 6000Ada": ["RTX 6000Ada", "RTX 6000 Ada"],
     "RTX 5000Ada": ["RTX 5000Ada"],
     "RTX 4500Ada": ["RTX 4500Ada"],
     "RTX 4000Ada": ["RTX 4000Ada"],
@@ -173,9 +173,9 @@ GPU_API_NAME_MAP = {
     "RTX PRO 6000 WS": ["RTX PRO 6000 WS"],
     "RTX PRO 6000 S": ["RTX PRO 6000 S"],
     "RTX PRO 6000 Max-Q": ["RTX PRO 6000 Max-Q"],
-    "Q RTX 6000": ["Q RTX 6000"],
+    "Q RTX 6000": ["Q RTX 6000", "Quadro RTX 6000"],
     "Quadro RTX 8000": ["Quadro RTX 8000"],
-    "Quadro RTX 6000": ["Quadro RTX 6000"],
+    "Quadro RTX 6000": ["Quadro RTX 6000", "Q RTX 6000"],
     "Quadro RTX 5000": ["Quadro RTX 5000"],
     "Quadro RTX 4000": ["Quadro RTX 4000"],
     "Quadro P6000": ["Quadro P6000"],
@@ -587,10 +587,27 @@ class VastAIClient:
             return "L40"
         if "L4" in name:
             return "L4"
-        if "6000Ada" in name:
+
+        # Specific 6000 distinctions (Quadro Turing 24GB vs Ampere A6000 48GB vs Ada Lovelace 48GB/96GB)
+        if "PRO 6000 WS" in name:
+            return "RTX PRO 6000 WS"
+        if "PRO 6000 S" in name:
+            return "RTX PRO 6000 S"
+        if "PRO 6000 Max-Q" in name:
+            return "RTX PRO 6000 Max-Q"
+        if "6000Ada" in name or "6000 Ada" in name:
             return "RTX 6000Ada"
-        if "A6000" in name or "PRO 6000" in name or "Q RTX 6000" in name:
+        if "Q RTX 6000" in name or "Quadro RTX 6000" in name:
+            return "Q RTX 6000"
+        if "A6000" in name:
             return "RTX A6000"
+        if "6000" in name:
+            if "Ada" in name or "PRO" in name:
+                return "RTX 6000Ada"
+            if ram_gb <= 24:
+                return "Q RTX 6000"
+            return "RTX A6000"
+
         if "T4" in name:
             return "Tesla T4"
         if "P100" in name:
@@ -1278,14 +1295,18 @@ GPU_DEFAULT_SPECS = {
 
     # Workstation & AI (GPUpoet min)
     "RTX 6000Ada": {"load_w": 300, "idle_w": 35, "price_usd": 5633.0},
+    "RTX PRO 6000 WS": {"load_w": 300, "idle_w": 35, "price_usd": 6800.0},
+    "RTX PRO 6000 S": {"load_w": 300, "idle_w": 35, "price_usd": 6500.0},
+    "RTX PRO 6000 Max-Q": {"load_w": 300, "idle_w": 35, "price_usd": 6500.0},
     "RTX 5000Ada": {"load_w": 250, "idle_w": 30, "price_usd": 3600.0},
     "RTX 4000Ada": {"load_w": 130, "idle_w": 20, "price_usd": 1250.0},
     "RTX A6000": {"load_w": 300, "idle_w": 35, "price_usd": 3015.0},
     "RTX A5000": {"load_w": 230, "idle_w": 30, "price_usd": 1480.0},
     "RTX A4000": {"load_w": 140, "idle_w": 20, "price_usd": 620.0},
     "RTX A2000": {"load_w": 70, "idle_w": 15, "price_usd": 260.0},
+    "Q RTX 6000": {"load_w": 260, "idle_w": 30, "price_usd": 650.0},
     "Quadro RTX 8000": {"load_w": 260, "idle_w": 30, "price_usd": 1650.0},
-    "Quadro RTX 6000": {"load_w": 260, "idle_w": 30, "price_usd": 850.0},
+    "Quadro RTX 6000": {"load_w": 260, "idle_w": 30, "price_usd": 650.0},
     "A100 (All variants)": {"load_w": 400, "idle_w": 50, "price_usd": 5950.0},
     "A100 80GB": {"load_w": 400, "idle_w": 50, "price_usd": 8049.0},
     "A100 40GB": {"load_w": 300, "idle_w": 45, "price_usd": 3900.0},
