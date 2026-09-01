@@ -192,10 +192,20 @@ if not check_password():
 
 @st.cache_data(ttl=300, show_spinner=False)
 def load_vast_data(api_key: str, selected_gpus_tuple: tuple) -> pd.DataFrame:
-    """Fetches and caches active offers from Vast.ai API for 5 minutes."""
+    """Fetches and caches active offers from Vast.ai API for 5 minutes and saves snapshot to SQLite."""
     client = VastAIClient(api_key=api_key)
     selected_gpus_list = list(selected_gpus_tuple) if selected_gpus_tuple else None
-    return client.fetch_all_selected_offers(selected_gpus=selected_gpus_list)
+    df = client.fetch_all_selected_offers(selected_gpus=selected_gpus_list)
+    if not df.empty:
+        try:
+            VastAIClient.record_raw_offers_snapshot(df)
+            summary_df_gpu = VastAIClient.calculate_summary_stats(df, price_mode="per_gpu")
+            VastAIClient.record_real_snapshot(summary_df_gpu, price_mode="per_gpu")
+            summary_df_inst = VastAIClient.calculate_summary_stats(df, price_mode="per_instance")
+            VastAIClient.record_real_snapshot(summary_df_inst, price_mode="per_instance")
+        except Exception as e:
+            pass
+    return df
 
 
 def create_price_line_chart(timeline_df: pd.DataFrame, price_label: str, hist_summary_df: Optional[pd.DataFrame] = None) -> go.Figure:
@@ -1702,8 +1712,15 @@ with tab_history:
         days_back=days_back,
     )
 
+    if raw_hist_df.empty and 'raw_df' in locals() and not raw_df.empty:
+        VastAIClient.record_raw_offers_snapshot(raw_df)
+        raw_hist_df = VastAIClient.get_raw_dataset_history(
+            selected_gpus=selected_gpus if selected_gpus else None,
+            days_back=days_back,
+        )
+
     if raw_hist_df.empty:
-        st.info("ℹ️ У базі даних ще немає збережених записів за обраний період. Запустіть фоновий збирач `python3 collector.py` або натисніть «Записати зріз у БД зараз» у боковій панелі.")
+        st.info("ℹ️ У базі даних ще немає збережених записів за обраний період. Зачекайте автооновлення або натисніть «Записати зріз у БД зараз» у боковій панелі.")
     else:
         st.success(f"📦 Знайдено **{len(raw_hist_df):,}** історичних записів серверів за останні {days_back} днів.")
         hist_display_cols = [
