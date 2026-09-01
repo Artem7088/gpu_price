@@ -39,6 +39,8 @@ from vast_client import (
     load_preferences,
     save_preferences,
     get_env_or_secret_api_key,
+    get_kyiv_now,
+    KYIV_TZ,
 )
 
 
@@ -80,7 +82,7 @@ st.markdown(
 )
 
 def format_time_ago(ts: Union[datetime.datetime, str, None]) -> str:
-    """Formats timestamp into Ukrainian relative time 'X хв тому'."""
+    """Formats timestamp into Ukrainian relative time 'X хв тому' in Kyiv timezone."""
     if ts is None or not str(ts).strip():
         return "ще немає"
     if isinstance(ts, str):
@@ -92,7 +94,13 @@ def format_time_ago(ts: Union[datetime.datetime, str, None]) -> str:
             except Exception:
                 return str(ts)
 
-    now = datetime.datetime.now()
+    if isinstance(ts, datetime.datetime) and ts.tzinfo is not None:
+        try:
+            ts = ts.astimezone(KYIV_TZ).replace(tzinfo=None)
+        except Exception:
+            ts = ts.replace(tzinfo=None)
+
+    now = get_kyiv_now()
     delta = now - ts
     total_seconds = int(delta.total_seconds())
 
@@ -688,7 +696,7 @@ with st.sidebar:
 
     if st.button("🔄 Оновити дані", use_container_width=True):
         st.cache_data.clear()
-        st.session_state["last_market_fetch_ts"] = datetime.datetime.now()
+        st.session_state["last_market_fetch_ts"] = get_kyiv_now()
         st.rerun()
 
     st.markdown("---")
@@ -804,7 +812,8 @@ with st.sidebar:
         f"• **Розмір БД:** {db_info['db_size_mb']} MB\n"
         f"• **Зрізів ринку:** {db_info['total_snapshots']}\n"
         f"• **Записів серверів:** {db_info['total_raw_rows']:,}\n"
-        f"• **Останній зріз у БД:** {db_snap_relative} ({last_db_snap or '—'})"
+        f"• **Останній зріз у БД:** {db_snap_relative} ({last_db_snap or '—'})\n"
+        f"• **Часовий пояс:** Київ (UTC+3 / EEST)"
     )
 
     if st.button("💾 Записати зріз у БД зараз", use_container_width=True):
@@ -812,7 +821,7 @@ with st.sidebar:
         with st.spinner("Збереження датасету ринку в базу..."):
             fresh_df = client.fetch_all_selected_offers(selected_gpus=None)
             VastAIClient.record_full_dataset_snapshot(fresh_df)
-            st.session_state["last_market_fetch_ts"] = datetime.datetime.now()
+            st.session_state["last_market_fetch_ts"] = get_kyiv_now()
             st.success("✅ Датасет успішно збережено в SQLite!")
             st.cache_data.clear()
             st.rerun()
@@ -829,14 +838,14 @@ with st.sidebar:
 
 # --- MAIN AREA ---
 if "last_market_fetch_ts" not in st.session_state:
-    st.session_state["last_market_fetch_ts"] = datetime.datetime.now()
+    st.session_state["last_market_fetch_ts"] = get_kyiv_now()
 
-last_dt = st.session_state.get("last_market_fetch_ts", datetime.datetime.now())
+last_dt = st.session_state.get("last_market_fetch_ts", get_kyiv_now())
 time_ago_str = format_time_ago(last_dt)
 
 st.markdown('<div class="main-title">⚡ Vast.ai GPU Price & Utilization Monitor</div>', unsafe_allow_html=True)
 st.markdown(
-    f'<div class="sub-title">Моніторинг ринку хмарних GPU Vast.ai у реальному часі • 🕒 Останнє оновлення: <b>{time_ago_str}</b> ({last_dt.strftime("%H:%M:%S")})</div>',
+    f'<div class="sub-title">Моніторинг ринку хмарних GPU Vast.ai у реальному часі • 🕒 Останнє оновлення: <b>{time_ago_str}</b> ({last_dt.strftime("%H:%M:%S")} за Києвом)</div>',
     unsafe_allow_html=True,
 )
 

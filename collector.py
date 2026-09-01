@@ -14,7 +14,7 @@ import argparse
 import datetime
 import pandas as pd
 
-from vast_client import VastAIClient, DB_PATH, GPU_PRESETS, get_env_or_secret_api_key
+from vast_client import VastAIClient, DB_PATH, GPU_PRESETS, get_env_or_secret_api_key, get_kyiv_now
 
 
 # Setup logging
@@ -137,7 +137,7 @@ def main():
 
     iteration = 1
     while running:
-        logger.info(f"\n--- [Iteration #{iteration}] {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
+        logger.info(f"\n--- [Iteration #{iteration}] {get_kyiv_now().strftime('%Y-%m-%d %H:%M:%S')} (Kyiv) ---")
         collect_snapshot(client, db_path=args.db)
         iteration += 1
 

@@ -14,8 +14,20 @@ import datetime
 import requests
 import pandas as pd
 import numpy as np
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Union
 from concurrent.futures import ThreadPoolExecutor
+
+try:
+    from zoneinfo import ZoneInfo
+    KYIV_TZ = ZoneInfo("Europe/Kyiv")
+except Exception:
+    KYIV_TZ = datetime.timezone(datetime.timedelta(hours=3))
+
+
+def get_kyiv_now() -> datetime.datetime:
+    """Returns current naive datetime in Europe/Kyiv timezone (Ukrainian standard time)."""
+    return datetime.datetime.now(KYIV_TZ).replace(tzinfo=None)
+
 
 logger = logging.getLogger(__name__)
 
@@ -830,7 +842,7 @@ class VastAIClient:
             return
 
         if snapshot_time is None:
-            snapshot_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            snapshot_time = get_kyiv_now().strftime("%Y-%m-%d %H:%M:%S")
 
         try:
             conn = sqlite3.connect(db_path)
@@ -882,7 +894,7 @@ class VastAIClient:
         if raw_df.empty:
             return
 
-        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now = get_kyiv_now().strftime("%Y-%m-%d %H:%M:%S")
         # 1. Save raw offers
         cls.record_raw_offers_snapshot(raw_df, snapshot_time=now, db_path=db_path)
 
@@ -905,7 +917,7 @@ class VastAIClient:
                 keep_times = set(times[:30])
                 c.execute("DELETE FROM raw_offers_history WHERE snapshot_time NOT IN (" + ",".join("?" * len(keep_times)) + ")", list(keep_times))
 
-            cutoff_stats = (datetime.datetime.now() - datetime.timedelta(days=180)).strftime("%Y-%m-%d %H:%M:%S")
+            cutoff_stats = (get_kyiv_now() - datetime.timedelta(days=180)).strftime("%Y-%m-%d %H:%M:%S")
             c.execute("DELETE FROM snapshot_stats WHERE timestamp < ?", (cutoff_stats,))
             conn.commit()
             conn.close()
@@ -919,7 +931,7 @@ class VastAIClient:
         """Retrieves raw server dataset history from SQLite database."""
         try:
             conn = sqlite3.connect(db_path)
-            since_time = (datetime.datetime.now() - datetime.timedelta(days=days_back)).strftime("%Y-%m-%d %H:%M:%S")
+            since_time = (get_kyiv_now() - datetime.timedelta(days=days_back)).strftime("%Y-%m-%d %H:%M:%S")
             query = "SELECT * FROM raw_offers_history WHERE snapshot_time >= ?"
             params = [since_time]
 
@@ -982,11 +994,11 @@ class VastAIClient:
 
     @staticmethod
     def record_real_snapshot(summary_df: pd.DataFrame, price_mode: str = "per_gpu", db_path: str = DB_PATH):
-        """Records the current real market snapshot into SQLite database."""
+        """Records the current real market snapshot into SQLite database in Kyiv time."""
         if summary_df.empty:
             return
 
-        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now = get_kyiv_now().strftime("%Y-%m-%d %H:%M:%S")
         try:
             conn = sqlite3.connect(db_path)
             c = conn.cursor()
@@ -1021,7 +1033,7 @@ class VastAIClient:
         """Retrieves actual recorded real historical points from SQLite database."""
         try:
             conn = sqlite3.connect(db_path)
-            since_time = (datetime.datetime.now() - datetime.timedelta(days=days_back)).strftime("%Y-%m-%d %H:%M:%S")
+            since_time = (get_kyiv_now() - datetime.timedelta(days=days_back)).strftime("%Y-%m-%d %H:%M:%S")
             query = "SELECT * FROM snapshot_stats WHERE timestamp >= ? AND price_mode = ?"
             params = [since_time, price_mode]
 
@@ -1057,7 +1069,7 @@ class VastAIClient:
         """
         try:
             conn = sqlite3.connect(db_path)
-            since_time = (datetime.datetime.now() - datetime.timedelta(days=days_back)).strftime("%Y-%m-%d %H:%M:%S")
+            since_time = (get_kyiv_now() - datetime.timedelta(days=days_back)).strftime("%Y-%m-%d %H:%M:%S")
             query = "SELECT * FROM snapshot_stats WHERE timestamp >= ? AND price_mode = ?"
             params = [since_time, price_mode]
 
@@ -1131,7 +1143,7 @@ class VastAIClient:
         """Calculates historical summary metrics grouped by GPU model and number of GPUs."""
         try:
             conn = sqlite3.connect(db_path)
-            since_time = (datetime.datetime.now() - datetime.timedelta(days=days_back)).strftime("%Y-%m-%d %H:%M:%S")
+            since_time = (get_kyiv_now() - datetime.timedelta(days=days_back)).strftime("%Y-%m-%d %H:%M:%S")
             price_col = "dph_per_gpu" if price_mode == "per_gpu" else "dph_total"
 
             query = f"SELECT snapshot_time, display_name, num_gpus, {price_col} as price, rentable FROM raw_offers_history WHERE snapshot_time >= ?"
