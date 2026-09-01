@@ -837,7 +837,8 @@ if filtered_df.empty:
 # Compute summary stats from 100% real data
 summary_df = VastAIClient.calculate_summary_stats(filtered_df, price_mode=price_mode)
 
-# Save actual snapshot into local SQLite history database
+# Save actual snapshot into local SQLite history database (both raw offers & summary stats)
+VastAIClient.record_raw_offers_snapshot(raw_df)
 VastAIClient.record_real_snapshot(summary_df, price_mode=price_mode)
 
 # Load real history points from SQLite
