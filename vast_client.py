@@ -37,7 +37,9 @@ DB_PATH = "gpu_history.db"
 GPU_PRESETS = [
     # Top & Popular
     "RTX 4090",
+    "RTX 4090D",
     "RTX 3090",
+    "RTX 3090 Ti",
     "RTX 5090",
     "Tesla V100 16GB",
     "Tesla V100 32GB",
@@ -55,16 +57,21 @@ GPU_PRESETS = [
     "L40S",
     "L40",
     "L4",
+    "L20",
     "RTX 4080",
     "RTX 4080 Super",
     "RTX 3080",
     "RTX 3080 Ti",
     "RTX 3070",
     "RTX 3070 Ti",
+    "RTX 3060",
+    "RTX 3060 Ti",
     "RTX 4070",
     "RTX 4070 Ti",
     "RTX 4070 Super",
     "RTX 4070 Ti Super",
+    "RTX 4060",
+    "RTX 4060 Ti",
     "RTX 5080",
     "RTX 5070",
     "RTX 5070 Ti",
@@ -138,14 +145,14 @@ GPU_PRESETS = [
 ]
 
 GPU_API_NAME_MAP = {
-    "RTX 4090": ["RTX 4090", "RTX 4090D"],
+    "RTX 4090": ["RTX 4090"],
     "RTX 4090D": ["RTX 4090D"],
-    "RTX 3090": ["RTX 3090", "RTX 3090 Ti"],
-    "RTX 3090 Ti": ["RTX 3090 Ti"],
+    "RTX 3090": ["RTX 3090"],
+    "RTX 3090 Ti": ["RTX 3090 Ti", "RTX 3090Ti"],
     "RTX 5090": ["RTX 5090"],
     "RTX 5080": ["RTX 5080"],
     "RTX 5070": ["RTX 5070"],
-    "RTX 5070 Ti": ["RTX 5070 Ti"],
+    "RTX 5070 Ti": ["RTX 5070 Ti", "RTX 5070Ti"],
     "Tesla V100 16GB": ["Tesla V100"],
     "Tesla V100 32GB": ["Tesla V100"],
     "A100 (All variants)": ["A100 PCIE", "A100 SXM4", "A100"],
@@ -153,9 +160,9 @@ GPU_API_NAME_MAP = {
     "A100 40GB": ["A100 PCIE", "A100 SXM4", "A100"],
     "H100 (All variants)": ["H100 SXM", "H100 PCIE", "H100 NVL", "H100"],
     "H100 SXM": ["H100 SXM"],
-    "H100 PCIE": ["H100 PCIE"],
+    "H100 PCIE": ["H100 PCIE", "H100 PCIe"],
     "H100 NVL": ["H100 NVL"],
-    "H200": ["H200", "H200 NVL"],
+    "H200": ["H200"],
     "H200 NVL": ["H200 NVL"],
     "H800": ["H800"],
     "B200": ["B200"],
@@ -192,27 +199,27 @@ GPU_API_NAME_MAP = {
     "A10": ["A10"],
     "A10G": ["A10G"],
     "A2": ["A2"],
-    "RTX 4080": ["RTX 4080", "RTX 4080S", "RTX 4080 Super"],
-    "RTX 4080 Super": ["RTX 4080S", "RTX 4080 Super"],
+    "RTX 4080": ["RTX 4080"],
+    "RTX 4080 Super": ["RTX 4080S", "RTX 4080 Super", "RTX 4080Super"],
     "RTX 4070 Ti": ["RTX 4070 Ti", "RTX 4070Ti"],
-    "RTX 4070 Ti Super": ["RTX 4070 Ti Super", "RTX 4070Ti Super"],
-    "RTX 4070": ["RTX 4070", "RTX 4070S", "RTX 4070 Super"],
-    "RTX 4070 Super": ["RTX 4070S", "RTX 4070 Super"],
+    "RTX 4070 Ti Super": ["RTX 4070 Ti Super", "RTX 4070Ti Super", "RTX 4070TiSuper"],
+    "RTX 4070": ["RTX 4070"],
+    "RTX 4070 Super": ["RTX 4070S", "RTX 4070 Super", "RTX 4070Super"],
     "RTX 4060 Ti": ["RTX 4060 Ti", "RTX 4060Ti"],
     "RTX 4060": ["RTX 4060"],
-    "RTX 3080": ["RTX 3080", "RTX 3080 Ti"],
+    "RTX 3080": ["RTX 3080"],
     "RTX 3080 Ti": ["RTX 3080 Ti", "RTX 3080Ti"],
     "RTX 3070": ["RTX 3070"],
     "RTX 3070 Ti": ["RTX 3070 Ti", "RTX 3070Ti"],
     "RTX 3060": ["RTX 3060"],
     "RTX 3060 Ti": ["RTX 3060 Ti", "RTX 3060Ti"],
     "RTX 2080 Ti": ["RTX 2080 Ti", "RTX 2080Ti"],
-    "RTX 2080 Super": ["RTX 2080 Super", "RTX 2080S"],
-    "RTX 2080": ["RTX 2080", "RTX 2080 Super", "RTX 2080S"],
-    "RTX 2070": ["RTX 2070", "RTX 2070S", "RTX 2070 Super"],
-    "RTX 2070 Super": ["RTX 2070S", "RTX 2070 Super"],
+    "RTX 2080 Super": ["RTX 2080 Super", "RTX 2080S", "RTX 2080Super"],
+    "RTX 2080": ["RTX 2080"],
+    "RTX 2070": ["RTX 2070"],
+    "RTX 2070 Super": ["RTX 2070S", "RTX 2070 Super", "RTX 2070Super"],
     "RTX 2060": ["RTX 2060"],
-    "RTX 2060 Super": ["RTX 2060S", "RTX 2060 Super"],
+    "RTX 2060 Super": ["RTX 2060S", "RTX 2060 Super", "RTX 2060Super"],
     "GTX 1080 Ti": ["GTX 1080 Ti", "GTX 1080Ti"],
     "GTX 1080": ["GTX 1080"],
     "GTX 1070": ["GTX 1070"],
@@ -517,78 +524,108 @@ class VastAIClient:
 
     @staticmethod
     def classify_gpu_display_name(raw_name: str, gpu_ram_mb: float) -> str:
-        """Classifies raw GPU names into user-friendly names."""
+        """Classifies raw GPU names into user-friendly distinct names."""
         name = str(raw_name).strip()
         ram_gb = round(gpu_ram_mb / 1024) if gpu_ram_mb else 0
 
-        # Special V100 distinction
+        # 1. Quadro GV100
+        if "GV100" in name:
+            return "Quadro GV100"
+
+        # 2. Tesla V100 (16GB vs 32GB)
         if "V100" in name:
             if ram_gb >= 24 or (gpu_ram_mb and gpu_ram_mb > 20000):
                 return "Tesla V100 32GB"
             return "Tesla V100 16GB"
 
-        # Special A100 distinction
-        if "A100" in name:
+        # 3. A100 (40GB vs 80GB)
+        if "A100" in name and "A1000" not in name:
             if ram_gb >= 60 or (gpu_ram_mb and gpu_ram_mb > 50000):
                 return "A100 80GB"
             return "A100 40GB"
 
-        # Check in GPU_API_NAME_MAP
-        for preset, raw_list in GPU_API_NAME_MAP.items():
-            for raw_pattern in raw_list:
-                if name.lower() == raw_pattern.lower():
-                    return preset
+        # 4. H200 variants
+        if "H200 NVL" in name:
+            return "H200 NVL"
+        if "H200" in name:
+            return "H200"
 
+        # 5. H100 variants
+        if "H100 NVL" in name:
+            return "H100 NVL"
+        if "H100 PCIE" in name or "H100 PCIe" in name:
+            return "H100 PCIE"
+        if "H100 SXM" in name:
+            return "H100 SXM"
+        if "H100" in name:
+            return "H100 (All variants)"
+
+        # 6. RTX 50-series
         if "5090" in name:
             return "RTX 5090"
         if "5080" in name:
             return "RTX 5080"
-        if "5070 Ti" in name:
+        if "5070 Ti" in name or "5070Ti" in name:
             return "RTX 5070 Ti"
         if "5070" in name:
             return "RTX 5070"
+
+        # 7. RTX 40-series
+        if "4090D" in name:
+            return "RTX 4090D"
         if "4090" in name:
             return "RTX 4090"
+        if "4080 Super" in name or "4080Super" in name or "4080S" in name:
+            return "RTX 4080 Super"
         if "4080" in name:
-            return "RTX 4080 Super" if "Super" in name or "4080S" in name else "RTX 4080"
-        if "4070 Ti" in name:
-            return "RTX 4070 Ti Super" if "Super" in name else "RTX 4070 Ti"
+            return "RTX 4080"
+        if "4070 Ti Super" in name or "4070Ti Super" in name or "4070TiSuper" in name:
+            return "RTX 4070 Ti Super"
+        if "4070 Ti" in name or "4070Ti" in name:
+            return "RTX 4070 Ti"
+        if "4070 Super" in name or "4070Super" in name or "4070S" in name:
+            return "RTX 4070 Super"
         if "4070" in name:
-            return "RTX 4070 Super" if "Super" in name or "4070S" in name else "RTX 4070"
-        if "4060 Ti" in name:
+            return "RTX 4070"
+        if "4060 Ti" in name or "4060Ti" in name:
             return "RTX 4060 Ti"
         if "4060" in name:
             return "RTX 4060"
+        # 8. RTX 30-series
+        if "3090 Ti" in name or "3090Ti" in name:
+            return "RTX 3090 Ti"
         if "3090" in name:
-            return "RTX 3090 Ti" if "Ti" in name else "RTX 3090"
+            return "RTX 3090"
+        if "3080 Ti" in name or "3080Ti" in name:
+            return "RTX 3080 Ti"
         if "3080" in name:
-            return "RTX 3080 Ti" if "Ti" in name else "RTX 3080"
+            return "RTX 3080"
+        if "3070 Ti" in name or "3070Ti" in name:
+            return "RTX 3070 Ti"
         if "3070" in name:
-            return "RTX 3070 Ti" if "Ti" in name else "RTX 3070"
+            return "RTX 3070"
+        if "3060 Ti" in name or "3060Ti" in name:
+            return "RTX 3060 Ti"
         if "3060" in name:
-            return "RTX 3060 Ti" if "Ti" in name else "RTX 3060"
-        if "2080" in name:
-            return "RTX 2080 Ti" if "Ti" in name else "RTX 2080 Super" if "Super" in name or "2080S" in name else "RTX 2080"
-        if "2070" in name:
-            return "RTX 2070 Super" if "Super" in name or "2070S" in name else "RTX 2070"
-        if "2060" in name:
-            return "RTX 2060 Super" if "Super" in name or "2060S" in name else "RTX 2060"
-        if "H200" in name:
-            return "H200 NVL" if "NVL" in name else "H200"
-        if "H100" in name:
-            if "NVL" in name:
-                return "H100 NVL"
-            if "PCIE" in name:
-                return "H100 PCIE"
-            return "H100 SXM"
-        if "L40S" in name:
-            return "L40S"
-        if "L40" in name:
-            return "L40"
-        if "L4" in name:
-            return "L4"
+            return "RTX 3060"
 
-        # Specific 6000 distinctions (Quadro Turing 24GB vs Ampere A6000 48GB vs Ada Lovelace 48GB/96GB)
+        # 9. RTX 20-series
+        if "2080 Ti" in name or "2080Ti" in name:
+            return "RTX 2080 Ti"
+        if "2080 Super" in name or "2080S" in name:
+            return "RTX 2080 Super"
+        if "2080" in name:
+            return "RTX 2080"
+        if "2070 Super" in name or "2070S" in name:
+            return "RTX 2070 Super"
+        if "2070" in name:
+            return "RTX 2070"
+        if "2060 Super" in name or "2060S" in name:
+            return "RTX 2060 Super"
+        if "2060" in name:
+            return "RTX 2060"
+
+        # 10. Workstation (6000 / 5000 / 4500 / 4000 / 2000)
         if "PRO 6000 WS" in name:
             return "RTX PRO 6000 WS"
         if "PRO 6000 S" in name:
@@ -608,18 +645,128 @@ class VastAIClient:
                 return "Q RTX 6000"
             return "RTX A6000"
 
-        if "T4" in name:
+        if "5000Ada" in name or "5000 Ada" in name:
+            return "RTX 5000Ada"
+        if "A5000" in name:
+            return "RTX A5000"
+        if "Quadro RTX 5000" in name or "Quadro P5000" in name:
+            return "Quadro RTX 5000" if "RTX" in name else "Quadro P5000"
+
+        if "4500Ada" in name:
+            return "RTX 4500Ada"
+        if "A4500" in name:
+            return "RTX A4500"
+
+        if "4000Ada" in name:
+            return "RTX 4000Ada"
+        if "A4000" in name:
+            return "RTX A4000"
+        if "Quadro RTX 4000" in name or "Quadro P4000" in name:
+            return "Quadro RTX 4000"
+
+        if "2000Ada" in name:
+            return "RTX 2000Ada"
+        if "A2000" in name:
+            return "RTX A2000"
+
+        if "Quadro RTX 8000" in name:
+            return "Quadro RTX 8000"
+        if "Quadro P6000" in name:
+            return "Quadro P6000"
+
+        # 11. Data Center L-series, A-series, Tesla
+        if "L40S" in name:
+            return "L40S"
+        if "L40" in name:
+            return "L40"
+        if "L4" in name:
+            return "L4"
+        if "L20" in name:
+            return "L20"
+
+        if "A800" in name:
+            return "A800"
+        if "A40" in name:
+            return "A40"
+        if "A30" in name:
+            return "A30"
+        if "A16" in name:
+            return "A16"
+        if "A10G" in name:
+            return "A10G"
+        if "A10" in name:
+            return "A10"
+        if "A2" in name:
+            return "A2"
+        if "B200" in name:
+            return "B200"
+        if "B100" in name:
+            return "B100"
+
+        if "Tesla T4" in name or name == "T4":
             return "Tesla T4"
-        if "P100" in name:
+        if "Tesla P100" in name or name == "P100":
             return "Tesla P100"
+        if "Tesla P40" in name:
+            return "Tesla P40"
+        if "Tesla P4" in name:
+            return "Tesla P4"
+        if "Tesla K80" in name:
+            return "Tesla K80"
+        if "Tesla M40" in name:
+            return "Tesla M40"
+
+        # 12. GTX & TITAN
+        if "1080 Ti" in name or "1080Ti" in name:
+            return "GTX 1080 Ti"
+        if "1080" in name:
+            return "GTX 1080"
+        if "1070" in name:
+            return "GTX 1070"
+        if "1660 Ti" in name or "1660Ti" in name:
+            return "GTX 1660 Ti"
+        if "1660 Super" in name or "1660S" in name:
+            return "GTX 1660 Super"
+        if "TITAN RTX" in name:
+            return "TITAN RTX"
+        if "TITAN V" in name:
+            return "TITAN V"
+        if "TITAN Xp" in name:
+            return "TITAN Xp"
+
+        # 13. AMD & Intel
         if "MI300" in name:
             return "AMD MI300X"
+        if "MI250X" in name:
+            return "AMD MI250X"
+        if "MI250" in name:
+            return "AMD MI250"
+        if "MI210" in name:
+            return "AMD MI210"
+        if "MI100" in name:
+            return "AMD MI100"
         if "MI50" in name or "mi50" in name or "Instinct" in name:
             return "AMD MI50"
         if "7900 XTX" in name:
             return "Radeon RX 7900 XTX"
         if "7900 XT" in name:
             return "Radeon RX 7900 XT"
+        if "7900 GRE" in name:
+            return "Radeon RX 7900 GRE"
+        if "7800 XT" in name:
+            return "Radeon RX 7800 XT"
+        if "6900 XT" in name:
+            return "Radeon RX 6900 XT"
+        if "6800 XT" in name:
+            return "Radeon RX 6800 XT"
+        if "6700 XT" in name:
+            return "Radeon RX 6700 XT"
+
+        # Check in GPU_API_NAME_MAP fallback
+        for preset, raw_list in GPU_API_NAME_MAP.items():
+            for raw_pattern in raw_list:
+                if name.lower() == raw_pattern.lower():
+                    return preset
 
         return name
 
@@ -1299,37 +1446,71 @@ GPU_DEFAULT_SPECS = {
     "RTX PRO 6000 S": {"load_w": 300, "idle_w": 35, "price_usd": 6500.0},
     "RTX PRO 6000 Max-Q": {"load_w": 300, "idle_w": 35, "price_usd": 6500.0},
     "RTX 5000Ada": {"load_w": 250, "idle_w": 30, "price_usd": 3600.0},
+    "RTX 4500Ada": {"load_w": 210, "idle_w": 25, "price_usd": 2250.0},
     "RTX 4000Ada": {"load_w": 130, "idle_w": 20, "price_usd": 1250.0},
+    "RTX 2000Ada": {"load_w": 70, "idle_w": 15, "price_usd": 620.0},
     "RTX A6000": {"load_w": 300, "idle_w": 35, "price_usd": 3015.0},
     "RTX A5000": {"load_w": 230, "idle_w": 30, "price_usd": 1480.0},
+    "RTX A4500": {"load_w": 200, "idle_w": 25, "price_usd": 1100.0},
     "RTX A4000": {"load_w": 140, "idle_w": 20, "price_usd": 620.0},
     "RTX A2000": {"load_w": 70, "idle_w": 15, "price_usd": 260.0},
     "Q RTX 6000": {"load_w": 260, "idle_w": 30, "price_usd": 650.0},
     "Quadro RTX 8000": {"load_w": 260, "idle_w": 30, "price_usd": 1650.0},
     "Quadro RTX 6000": {"load_w": 260, "idle_w": 30, "price_usd": 650.0},
+    "Quadro RTX 5000": {"load_w": 230, "idle_w": 30, "price_usd": 550.0},
+    "Quadro RTX 4000": {"load_w": 160, "idle_w": 20, "price_usd": 320.0},
+    "Quadro P6000": {"load_w": 250, "idle_w": 30, "price_usd": 480.0},
+    "Quadro P5000": {"load_w": 180, "idle_w": 25, "price_usd": 260.0},
+    "Quadro GV100": {"load_w": 250, "idle_w": 35, "price_usd": 1800.0},
     "A100 (All variants)": {"load_w": 400, "idle_w": 50, "price_usd": 5950.0},
     "A100 80GB": {"load_w": 400, "idle_w": 50, "price_usd": 8049.0},
     "A100 40GB": {"load_w": 300, "idle_w": 45, "price_usd": 3900.0},
     "A800": {"load_w": 400, "idle_w": 50, "price_usd": 7100.0},
     "A40": {"load_w": 300, "idle_w": 35, "price_usd": 3200.0},
+    "A30": {"load_w": 165, "idle_w": 25, "price_usd": 2800.0},
+    "A16": {"load_w": 250, "idle_w": 35, "price_usd": 2400.0},
+    "A10G": {"load_w": 150, "idle_w": 25, "price_usd": 1750.0},
+    "A10": {"load_w": 150, "idle_w": 25, "price_usd": 1600.0},
+    "A2": {"load_w": 60, "idle_w": 15, "price_usd": 750.0},
     "L40S": {"load_w": 350, "idle_w": 40, "price_usd": 7100.0},
     "L40": {"load_w": 300, "idle_w": 35, "price_usd": 5600.0},
     "L4": {"load_w": 72, "idle_w": 15, "price_usd": 1850.0},
+    "L20": {"load_w": 275, "idle_w": 30, "price_usd": 4200.0},
     "H100 (All variants)": {"load_w": 700, "idle_w": 70, "price_usd": 22500.0},
     "H100 SXM": {"load_w": 700, "idle_w": 70, "price_usd": 25500.0},
     "H100 PCIE": {"load_w": 350, "idle_w": 50, "price_usd": 19000.0},
     "H100 NVL": {"load_w": 700, "idle_w": 70, "price_usd": 30500.0},
     "H800": {"load_w": 700, "idle_w": 70, "price_usd": 19500.0},
     "H200": {"load_w": 700, "idle_w": 70, "price_usd": 34500.0},
+    "H200 NVL": {"load_w": 700, "idle_w": 70, "price_usd": 38000.0},
+    "B200": {"load_w": 1000, "idle_w": 90, "price_usd": 38000.0},
+    "B100": {"load_w": 700, "idle_w": 70, "price_usd": 32000.0},
+    "GTX 1070": {"load_w": 150, "idle_w": 20, "price_usd": 95.0},
+    "GTX 1660 Ti": {"load_w": 120, "idle_w": 20, "price_usd": 110.0},
+    "GTX 1660 Super": {"load_w": 125, "idle_w": 20, "price_usd": 115.0},
 
     # AMD & Intel (GPUpoet min)
+    "TITAN Xp": {"load_w": 250, "idle_w": 25, "price_usd": 240.0},
     "AMD MI50": {"load_w": 300, "idle_w": 40, "price_usd": 135.0},
     "AMD MI100": {"load_w": 300, "idle_w": 40, "price_usd": 1050.0},
     "AMD MI210": {"load_w": 300, "idle_w": 40, "price_usd": 2650.0},
+    "AMD MI250": {"load_w": 500, "idle_w": 60, "price_usd": 5500.0},
+    "AMD MI250X": {"load_w": 560, "idle_w": 60, "price_usd": 6800.0},
     "AMD MI300X": {"load_w": 750, "idle_w": 80, "price_usd": 16500.0},
     "Radeon RX 7900 XTX": {"load_w": 355, "idle_w": 35, "price_usd": 747.0},
     "Radeon RX 7900 XT": {"load_w": 315, "idle_w": 30, "price_usd": 522.0},
+    "Radeon RX 7900 GRE": {"load_w": 260, "idle_w": 25, "price_usd": 480.0},
+    "Radeon RX 7800 XT": {"load_w": 263, "idle_w": 25, "price_usd": 420.0},
+    "Radeon RX 6900 XT": {"load_w": 300, "idle_w": 30, "price_usd": 380.0},
     "Radeon RX 6800 XT": {"load_w": 300, "idle_w": 30, "price_usd": 272.0},
+    "Radeon RX 6700 XT": {"load_w": 230, "idle_w": 20, "price_usd": 220.0},
+    "Radeon Pro VII": {"load_w": 250, "idle_w": 25, "price_usd": 550.0},
+    "Radeon VII": {"load_w": 295, "idle_w": 30, "price_usd": 280.0},
+    "Intel Data Center GPU Max 1550": {"load_w": 600, "idle_w": 60, "price_usd": 6500.0},
+    "Intel Data Center GPU Max 1100": {"load_w": 300, "idle_w": 40, "price_usd": 3200.0},
+    "Intel Arc A770": {"load_w": 225, "idle_w": 35, "price_usd": 240.0},
+    "Intel Arc A750": {"load_w": 225, "idle_w": 35, "price_usd": 180.0},
+    "Intel Arc Pro A60": {"load_w": 130, "idle_w": 20, "price_usd": 290.0},
 }
 
 
