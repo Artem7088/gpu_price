@@ -1,0 +1,23 @@
+# Streamlit secrets & local config
+.streamlit/secrets.toml
+
+# Local databases and logs
+*.db
+*.log
+collector.log
+streamlit.log
+
+# User preferences & cache
+user_preferences.json
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS & IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.env
+venv/
+.venv/
