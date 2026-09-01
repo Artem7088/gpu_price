@@ -877,6 +877,7 @@ class VastAIClient:
     def record_full_dataset_snapshot(cls, raw_df: pd.DataFrame, db_path: str = DB_PATH):
         """
         Saves the entire raw offers dataset and both per_gpu & per_instance summary analytics.
+        Also automatically prunes old raw records (>14 days) to keep DB lightweight and fast.
         """
         if raw_df.empty:
             return
@@ -892,6 +893,26 @@ class VastAIClient:
         # 3. Compute and save per_instance summary
         summary_per_instance = cls.calculate_summary_stats(raw_df, price_mode="per_instance")
         cls.record_real_snapshot(summary_per_instance, price_mode="per_instance", db_path=db_path)
+
+        # 4. Auto-prune old records (keep recent 30 raw snapshots, >180 days for aggregate stats)
+        try:
+            conn = sqlite3.connect(db_path)
+            c = conn.cursor()
+            # Keep only latest 30 snapshots in raw offers to keep DB compact for Git and Cloud
+            c.execute("SELECT DISTINCT snapshot_time FROM raw_offers_history ORDER BY snapshot_time DESC")
+            times = [r[0] for r in c.fetchall()]
+            if len(times) > 30:
+                keep_times = set(times[:30])
+                c.execute("DELETE FROM raw_offers_history WHERE snapshot_time NOT IN (" + ",".join("?" * len(keep_times)) + ")", list(keep_times))
+
+            cutoff_stats = (datetime.datetime.now() - datetime.timedelta(days=180)).strftime("%Y-%m-%d %H:%M:%S")
+            c.execute("DELETE FROM snapshot_stats WHERE timestamp < ?", (cutoff_stats,))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.warning(f"Failed to prune old DB records: {e}")
+
+
 
     @staticmethod
     def get_raw_dataset_history(selected_gpus: Optional[List[str]] = None, days_back: int = 7, db_path: str = DB_PATH) -> pd.DataFrame:

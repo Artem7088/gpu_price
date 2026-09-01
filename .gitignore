@@ -1,8 +1,10 @@
 # Streamlit secrets & local config
 .streamlit/secrets.toml
 
-# Local databases and logs
-*.db
+# SQLite temporary journal files & logs
+*.db-journal
+*.db-wal
+*.db-shm
 *.log
 collector.log
 streamlit.log
@@ -21,3 +23,4 @@ Thumbs.db
 .env
 venv/
 .venv/
+
