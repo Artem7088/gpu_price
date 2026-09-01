@@ -4,6 +4,9 @@ Built with Streamlit and Plotly for tracking GPU pricing, percentiles (P10, Medi
 and availability/utilization metrics in real time.
 """
 
+import os
+import sys
+
 import datetime
 import io
 import pandas as pd
