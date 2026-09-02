@@ -91,6 +91,8 @@ GPU_PRESETS = [
     "GTX 1070",
     "GTX 1660 Ti",
     "GTX 1660 Super",
+    "GTX 1660",
+
     "TITAN RTX",
     "TITAN V",
     "TITAN Xp",
@@ -223,8 +225,9 @@ GPU_API_NAME_MAP = {
     "GTX 1080 Ti": ["GTX 1080 Ti", "GTX 1080Ti"],
     "GTX 1080": ["GTX 1080"],
     "GTX 1070": ["GTX 1070"],
-    "GTX 1660 Ti": ["GTX 1660 Ti", "GTX 1660Ti"],
-    "GTX 1660 Super": ["GTX 1660 Super", "GTX 1660S"],
+    "GTX 1660": ["GTX 1660", "GeForce GTX 1660", "NVIDIA GeForce GTX 1660", "GTX1660"],
+    "GTX 1660 Ti": ["GTX 1660 Ti", "GTX 1660Ti", "GeForce GTX 1660 Ti", "GTX1660Ti", "1660 Ti", "1660Ti"],
+    "GTX 1660 Super": ["GTX 1660 Super", "GTX 1660S", "GTX 1660SUPER", "GTX 1660-Super", "GeForce GTX 1660 Super", "GTX1660Super", "GTX1660S", "1660 Super", "1660S"],
     "TITAN RTX": ["TITAN RTX"],
     "TITAN V": ["TITAN V"],
     "TITAN Xp": ["TITAN Xp"],
@@ -723,10 +726,12 @@ class VastAIClient:
             return "GTX 1080"
         if "1070" in name:
             return "GTX 1070"
-        if "1660 Ti" in name or "1660Ti" in name:
+        if "1660 Ti" in name or "1660Ti" in name or "1660-Ti" in name:
             return "GTX 1660 Ti"
-        if "1660 Super" in name or "1660S" in name:
+        if "1660 Super" in name or "1660S" in name or "1660s" in name or "1660SUPER" in name or "1660-Super" in name:
             return "GTX 1660 Super"
+        if "1660" in name:
+            return "GTX 1660"
         if "TITAN RTX" in name:
             return "TITAN RTX"
         if "TITAN V" in name:
@@ -1486,6 +1491,8 @@ GPU_DEFAULT_SPECS = {
     "B200": {"load_w": 1000, "idle_w": 90, "price_usd": 38000.0},
     "B100": {"load_w": 700, "idle_w": 70, "price_usd": 32000.0},
     "GTX 1070": {"load_w": 150, "idle_w": 20, "price_usd": 95.0},
+    "GTX 1660": {"load_w": 120, "idle_w": 20, "price_usd": 105.0},
+
     "GTX 1660 Ti": {"load_w": 120, "idle_w": 20, "price_usd": 110.0},
     "GTX 1660 Super": {"load_w": 125, "idle_w": 20, "price_usd": 115.0},
 

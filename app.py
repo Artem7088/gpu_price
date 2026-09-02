@@ -932,6 +932,17 @@ with col4:
     st.metric("📊 Медіанна ціна", f"${median_market_price:.4f}", price_label)
 
 st.markdown("---")
+# Inform user if any selected GPU has 0 active offers on the marketplace
+if selected_gpus:
+    found_gpus = set(filtered_df["display_name"].unique()) if not filtered_df.empty else set()
+    missing_gpus = [g for g in selected_gpus if g not in found_gpus]
+    if missing_gpus:
+        st.info(
+            f"ℹ️ **Зверніть увагу:** Для наступних обраних карт наразі немає активних серверів на маркетплейсі Vast.ai: "
+            f"**{', '.join(missing_gpus)}** (0 пропозицій на ринку). "
+            f"Вони автоматично з'являться в графіках і таблицях, щойно хости виставлять сервери з цими картами."
+        )
+
 
 # Main Analysis Tabs
 tab_price, tab_util, tab_profit, tab_summary, tab_offers, tab_history = st.tabs([
