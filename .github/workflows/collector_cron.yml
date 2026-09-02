@@ -3,9 +3,11 @@ run-name: "Collect GPU Market Snapshot"
 
 on:
   schedule:
-    # Run every 10 minutes automatically 24/7
-    - cron: '*/10 * * * *'
+    # Multiple cron schedules to ensure frequent triggering even if GitHub delays one
+    - cron: '*/5 * * * *'
   workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+  repository_dispatch: # Allows external webhook trigger (e.g. from cron-job.org / cronitor)
+    types: [collect_data]
 
 # Prevent concurrent runs from conflicting
 concurrency:
@@ -50,7 +52,8 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes in database to commit."
           else
-            git commit -m "chore(data): auto-update GPU market dataset [skip ci]"
+            git commit -m "chore(data): auto-update GPU market dataset"
+            git pull --rebase origin main || true
             git push origin main
           fi
 
