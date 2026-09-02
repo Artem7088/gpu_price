@@ -1089,6 +1089,7 @@ class VastAIClient:
             cutoff_stats = (get_kyiv_now() - datetime.timedelta(days=180)).strftime("%Y-%m-%d %H:%M:%S")
             c.execute("DELETE FROM snapshot_stats WHERE timestamp < ?", (cutoff_stats,))
             conn.commit()
+            conn.execute("VACUUM")
             conn.close()
         except Exception as e:
             logger.warning(f"Failed to prune old DB records: {e}")
