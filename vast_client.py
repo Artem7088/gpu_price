@@ -508,21 +508,37 @@ class VastAIClient:
         raise VastAPIError(f"Неочікувана помилка запиту: {last_exception}")
 
     def fetch_offers_for_raw_name(self, raw_gpu_name: str) -> List[Dict[str, Any]]:
-        """Queries all offers for a specific GPU raw name, ensuring no truncation."""
-        query_params = {
-            "gpu_name": {"eq": raw_gpu_name},
-            "verified": {"in": [True, False]},
-            "external": {"in": [True, False]},
-            "rentable": {"in": [True, False]},
-            "order": [["dph_total", "asc"]],
-            "limit": 2000,
-        }
+        """Queries all offers for a specific GPU raw name."""
+        return self.fetch_offers_for_batch([raw_gpu_name])
+
+    def fetch_offers_for_batch(self, raw_gpu_names: List[str]) -> List[Dict[str, Any]]:
+        """Queries all offers for a batch of GPU raw names using 'in' filter to avoid rate limits."""
+        if not raw_gpu_names:
+            return []
+        if len(raw_gpu_names) == 1:
+            query_params = {
+                "gpu_name": {"eq": raw_gpu_names[0]},
+                "verified": {"in": [True, False]},
+                "external": {"in": [True, False]},
+                "rentable": {"in": [True, False]},
+                "order": [["dph_total", "asc"]],
+                "limit": 2000,
+            }
+        else:
+            query_params = {
+                "gpu_name": {"in": list(raw_gpu_names)},
+                "verified": {"in": [True, False]},
+                "external": {"in": [True, False]},
+                "rentable": {"in": [True, False]},
+                "order": [["dph_total", "asc"]],
+                "limit": 2000,
+            }
         params = {"q": json.dumps(query_params)}
         try:
             data = self._request_with_retry("GET", "bundles/", params=params)
             return data.get("offers", [])
         except Exception as e:
-            logger.error(f"Error fetching offers for {raw_gpu_name}: {e}")
+            logger.error(f"Error fetching offers for batch {raw_gpu_names}: {e}")
             return []
 
     @staticmethod
@@ -782,7 +798,7 @@ class VastAIClient:
     def fetch_all_selected_offers(self, selected_gpus: Optional[List[str]] = None) -> pd.DataFrame:
         """
         Fetches ALL offers for selected GPU models without hitting the global 512 cap.
-        Uses parallel querying per GPU family.
+        Uses batched querying with 'in' filter for maximum speed and zero rate limits.
         """
         from concurrent.futures import as_completed
 
@@ -797,13 +813,18 @@ class VastAIClient:
             for names in GPU_API_NAME_MAP.values():
                 raw_names_to_fetch.update(names)
 
+        raw_list = list(raw_names_to_fetch)
+        # Chunk into batches of up to 15 names per API query
+        chunk_size = 15
+        batches = [raw_list[i:i + chunk_size] for i in range(0, len(raw_list), chunk_size)]
+
         all_offers = []
-        with ThreadPoolExecutor(max_workers=min(10, len(raw_names_to_fetch))) as executor:
-            future_to_gpu = {
-                executor.submit(self.fetch_offers_for_raw_name, raw_name): raw_name
-                for raw_name in raw_names_to_fetch
+        with ThreadPoolExecutor(max_workers=min(4, len(batches)) if batches else 1) as executor:
+            future_to_batch = {
+                executor.submit(self.fetch_offers_for_batch, batch): batch
+                for batch in batches
             }
-            for future in as_completed(future_to_gpu):
+            for future in as_completed(future_to_batch):
                 offers = future.result()
                 if offers:
                     all_offers.extend(offers)

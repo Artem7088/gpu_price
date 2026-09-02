@@ -238,6 +238,27 @@ def load_vast_data(api_key: str, selected_gpus_tuple: tuple) -> pd.DataFrame:
             VastAIClient.record_real_snapshot(summary_df_inst, price_mode="per_instance")
         except Exception as e:
             pass
+    else:
+        # Fallback to local SQLite database if live fetch yielded empty (e.g. network glitch)
+        try:
+            import sqlite3
+            if os.path.exists(DB_PATH):
+                conn = sqlite3.connect(DB_PATH)
+                fallback_df = pd.read_sql_query(
+                    """
+                    SELECT bundle_id, machine_id, raw_gpu_name, display_name, gpu_ram_gb,
+                           num_gpus, dph_total, dph_per_gpu, dph_base, rentable, rented, is_bid,
+                           reliability_pct, dlperf, inet_down_mbps, inet_up_mbps, geolocation
+                    FROM raw_offers_history
+                    WHERE snapshot_time = (SELECT MAX(snapshot_time) FROM raw_offers_history)
+                    """,
+                    conn,
+                )
+                conn.close()
+                if not fallback_df.empty:
+                    df = fallback_df
+        except Exception:
+            pass
     return df
 
 
