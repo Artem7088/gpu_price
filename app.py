@@ -868,7 +868,10 @@ with st.spinner("Завантаження свіжих даних з Vast.ai API
         st.stop()
 
 if raw_df.empty:
-    st.warning("⚠️ Не знайдено жодних пропозицій через Vast.ai API. Перевірте статус сервісу або параметри ключа.")
+    st.warning("⚠️ Не знайдено жодних пропозицій через Vast.ai API або в кеші зберігається старий запит. Натисніть кнопку нижче для перезавантаження.")
+    if st.button("🔄 Очистити кеш та оновити дані зараз", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
     st.stop()
 
 # Filter data based on user choices
