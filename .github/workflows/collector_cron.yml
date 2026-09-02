@@ -1,4 +1,5 @@
 name: "24/7 Vast.ai GPU Data Collector"
+run-name: "Collect GPU Market Snapshot"
 
 on:
   schedule:
@@ -13,7 +14,7 @@ concurrency:
 
 jobs:
   collect-data:
-    runs-name: "Collect GPU Market Snapshot"
+    name: "Collect GPU Market Snapshot"
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -52,3 +53,4 @@ jobs:
             git commit -m "chore(data): auto-update GPU market dataset [skip ci]"
             git push origin main
           fi
+
