@@ -386,6 +386,12 @@ def init_history_db(db_path: str = DB_PATH):
     except Exception as e:
         logger.error(f"Error initializing DB: {e}")
 
+# Run schema init on import
+try:
+    init_history_db()
+except Exception:
+    pass
+
 def get_env_or_secret_api_key() -> str:
     """Safely retrieves Vast.ai API key from environment, Streamlit secrets, or secrets.toml without hardcoding."""
     # 1. Environment variable
@@ -1522,7 +1528,15 @@ class VastAIClient:
             return pd.DataFrame()
 
         try:
+            init_history_db(db_path)
             conn = sqlite3.connect(db_path)
+            c = conn.cursor()
+            c.execute("PRAGMA table_info(raw_offers_history)")
+            cols = [r[1] for r in c.fetchall()]
+            if "host_id" not in cols:
+                conn.close()
+                return pd.DataFrame()
+
             since_time = (get_kyiv_now() - datetime.timedelta(days=days_back)).strftime("%Y-%m-%d %H:%M:%S")
             placeholders = ",".join("?" * len(clean_ids))
             query = f"""
@@ -1550,7 +1564,15 @@ class VastAIClient:
     ) -> pd.DataFrame:
         """Returns summary list of all active hosters recorded in SQLite database."""
         try:
+            init_history_db(db_path)
             conn = sqlite3.connect(db_path)
+            c = conn.cursor()
+            c.execute("PRAGMA table_info(raw_offers_history)")
+            cols = [r[1] for r in c.fetchall()]
+            if "host_id" not in cols:
+                conn.close()
+                return pd.DataFrame()
+
             since_time = (get_kyiv_now() - datetime.timedelta(days=days_back)).strftime("%Y-%m-%d %H:%M:%S")
             query = """
                 SELECT 

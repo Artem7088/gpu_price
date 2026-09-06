@@ -40,8 +40,15 @@ from vast_client import (
     save_preferences,
     get_env_or_secret_api_key,
     get_kyiv_now,
+    init_history_db,
     KYIV_TZ,
 )
+
+# Ensure database schema is initialized on start
+try:
+    init_history_db()
+except Exception:
+    pass
 
 
 # Page Configuration
@@ -1834,7 +1841,10 @@ with tab_machines:
                 help="Host ID хостера на Vast.ai. Будуть відображені всі машини та GPU, що належать цьому хостеру.",
             )
         with h_col2:
-            all_hosts_db = VastAIClient.get_all_tracked_hosts_summary(days_back=days_back)
+            try:
+                all_hosts_db = VastAIClient.get_all_tracked_hosts_summary(days_back=days_back)
+            except Exception:
+                all_hosts_db = pd.DataFrame()
             quick_host_options = ["— Оберіть популярного хостера з БД —"]
             if not all_hosts_db.empty:
                 for _, hrow in all_hosts_db.head(25).iterrows():
@@ -2002,7 +2012,10 @@ with tab_machines:
                 help="Вкажіть один або кілька Machine ID хостів для відстеження їхньої утилізації та ставок оренди.",
             )
         with m_col2:
-            all_machines_db = VastAIClient.get_all_tracked_machines_summary(days_back=days_back)
+            try:
+                all_machines_db = VastAIClient.get_all_tracked_machines_summary(days_back=days_back)
+            except Exception:
+                all_machines_db = pd.DataFrame()
             quick_select_options = ["— Оберіть популярну машину з БД —"]
             if not all_machines_db.empty:
                 for _, mrow in all_machines_db.head(25).iterrows():
