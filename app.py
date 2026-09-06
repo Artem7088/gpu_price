@@ -2034,290 +2034,290 @@ with tab_machines:
                 help="Період, за який розраховується заповнення та заробіток",
             )
 
-    # Parse entered machine IDs
-    parsed_ids = []
-    for token in input_ids_str.replace(";", ",").replace(" ", ",").split(","):
-        token = token.strip()
-        if token.isdigit():
-            val = int(token)
-            if val not in parsed_ids:
-                parsed_ids.append(val)
+        # Parse entered machine IDs
+        parsed_ids = []
+        for token in input_ids_str.replace(";", ",").replace(" ", ",").split(","):
+            token = token.strip()
+            if token.isdigit():
+                val = int(token)
+                if val not in parsed_ids:
+                    parsed_ids.append(val)
 
-    if quick_picked != "— Оберіть популярну машину з БД —":
-        try:
-            picked_id = int(quick_picked.split()[0].replace("#", ""))
-            if picked_id not in parsed_ids:
-                parsed_ids.append(picked_id)
-        except Exception:
-            pass
+        if quick_picked != "— Оберіть популярну машину з БД —":
+            try:
+                picked_id = int(quick_picked.split()[0].replace("#", ""))
+                if picked_id not in parsed_ids:
+                    parsed_ids.append(picked_id)
+            except Exception:
+                pass
 
-    if parsed_ids != current_watched:
-        st.session_state["watched_machine_ids"] = parsed_ids
-        save_preferences({"watched_machine_ids": parsed_ids})
+        if parsed_ids != current_watched:
+            st.session_state["watched_machine_ids"] = parsed_ids
+            save_preferences({"watched_machine_ids": parsed_ids})
 
-    if not parsed_ids:
-        st.info("ℹ️ Введіть Machine ID у поле вище або оберіть зі списку для відстеження.")
-    else:
-        # Load history for all tracked machines
-        try:
-            all_mach_hist = VastAIClient.get_machine_history(machine_ids=parsed_ids, days_back=mach_days_back)
-        except Exception:
-            all_mach_hist = pd.DataFrame()
+        if not parsed_ids:
+            st.info("ℹ️ Введіть Machine ID у поле вище або оберіть зі списку для відстеження.")
+        else:
+            # Load history for all tracked machines
+            try:
+                all_mach_hist = VastAIClient.get_machine_history(machine_ids=parsed_ids, days_back=mach_days_back)
+            except Exception:
+                all_mach_hist = pd.DataFrame()
 
-        # Build comparison summary list
-        mach_summaries = []
-        for mid in parsed_ids:
-            m_sub = all_mach_hist[all_mach_hist["machine_id"] == mid] if not all_mach_hist.empty else pd.DataFrame()
-            if not m_sub.empty:
-                m_metrics = VastAIClient.calculate_machine_detailed_metrics(m_sub)
-                mach_summaries.append(m_metrics)
-            else:
-                try:
-                    live_client = VastAIClient(api_key=api_key_input)
-                    live_df = live_client.fetch_machines_offers([mid])
-                    if not live_df.empty:
-                        VastAIClient.record_raw_offers_snapshot(live_df)
-                        m_sub = live_df
-                        m_metrics = VastAIClient.calculate_machine_detailed_metrics(m_sub)
-                        mach_summaries.append(m_metrics)
-                    else:
-                        mach_summaries.append({
-                            "machine_id": mid,
-                            "display_name": "Немає в БД",
-                            "num_gpus": 0,
-                            "occupancy_pct": 0.0,
-                            "latest_status": "⚪ Немає даних",
-                            "latest_price_total": 0.0,
-                            "latest_price_per_gpu": 0.0,
-                            "total_earned_usd": 0.0,
-                            "projected_monthly_usd": 0.0,
-                            "reliability_pct": 0.0,
-                            "geolocation": "—",
-                            "latest_snapshot_time": None,
-                            "total_snapshots": 0,
-                        })
-                except Exception:
-                    pass
+            # Build comparison summary list
+            mach_summaries = []
+            for mid in parsed_ids:
+                m_sub = all_mach_hist[all_mach_hist["machine_id"] == mid] if not all_mach_hist.empty else pd.DataFrame()
+                if not m_sub.empty:
+                    m_metrics = VastAIClient.calculate_machine_detailed_metrics(m_sub)
+                    mach_summaries.append(m_metrics)
+                else:
+                    try:
+                        live_client = VastAIClient(api_key=api_key_input)
+                        live_df = live_client.fetch_machines_offers([mid])
+                        if not live_df.empty:
+                            VastAIClient.record_raw_offers_snapshot(live_df)
+                            m_sub = live_df
+                            m_metrics = VastAIClient.calculate_machine_detailed_metrics(m_sub)
+                            mach_summaries.append(m_metrics)
+                        else:
+                            mach_summaries.append({
+                                "machine_id": mid,
+                                "display_name": "Немає в БД",
+                                "num_gpus": 0,
+                                "occupancy_pct": 0.0,
+                                "latest_status": "⚪ Немає даних",
+                                "latest_price_total": 0.0,
+                                "latest_price_per_gpu": 0.0,
+                                "total_earned_usd": 0.0,
+                                "projected_monthly_usd": 0.0,
+                                "reliability_pct": 0.0,
+                                "geolocation": "—",
+                                "latest_snapshot_time": None,
+                                "total_snapshots": 0,
+                            })
+                    except Exception:
+                        pass
 
-        if mach_summaries:
-            valid_summaries = [m for m in mach_summaries if m.get("total_snapshots", 0) > 0]
-            if valid_summaries:
-                total_watched = len(valid_summaries)
-                currently_rented = sum(1 for m in valid_summaries if m.get("is_rented_now", False))
-                avg_occ = float(np.mean([m.get("occupancy_pct", 0.0) for m in valid_summaries]))
-                total_period_earnings = sum(m.get("total_earned_usd", 0.0) for m in valid_summaries)
+            if mach_summaries:
+                valid_summaries = [m for m in mach_summaries if m.get("total_snapshots", 0) > 0]
+                if valid_summaries:
+                    total_watched = len(valid_summaries)
+                    currently_rented = sum(1 for m in valid_summaries if m.get("is_rented_now", False))
+                    avg_occ = float(np.mean([m.get("occupancy_pct", 0.0) for m in valid_summaries]))
+                    total_period_earnings = sum(m.get("total_earned_usd", 0.0) for m in valid_summaries)
 
-                sm1, sm2, sm3, sm4 = st.columns(4)
-                with sm1:
-                    st.metric("🖥️ Машин у моніторингу", f"{total_watched} шт")
-                with sm2:
-                    st.metric("🟢 В оренді зараз", f"{currently_rented} / {total_watched} шт", f"{currently_rented / total_watched * 100:.0f}% активні")
-                with sm3:
-                    st.metric(f"📊 Сер. заповнення ({mach_days_back}д)", f"{avg_occ:.1f}%", "фактична зайнятість")
-                with sm4:
-                    st.metric(f"💰 Сумарний дохід ({mach_days_back}д)", f"${total_period_earnings:,.2f}", "накопичено машинами")
+                    sm1, sm2, sm3, sm4 = st.columns(4)
+                    with sm1:
+                        st.metric("🖥️ Машин у моніторингу", f"{total_watched} шт")
+                    with sm2:
+                        st.metric("🟢 В оренді зараз", f"{currently_rented} / {total_watched} шт", f"{currently_rented / total_watched * 100:.0f}% активні")
+                    with sm3:
+                        st.metric(f"📊 Сер. заповнення ({mach_days_back}д)", f"{avg_occ:.1f}%", "фактична зайнятість")
+                    with sm4:
+                        st.metric(f"💰 Сумарний дохід ({mach_days_back}д)", f"${total_period_earnings:,.2f}", "накопичено машинами")
 
-            # Comparison Overview Table
-            st.markdown("##### 📋 Зведена таблиця відстежуваних машин")
-            comp_table_rows = []
-            for m in mach_summaries:
-                comp_table_rows.append({
-                    "Machine ID": m["machine_id"],
-                    "GPU Модель": m["display_name"],
-                    "GPU (шт)": m["num_gpus"],
-                    "Поточний стан": m["latest_status"],
-                    "Ціна ($/год)": m["latest_price_total"],
-                    "Ціна / 1 GPU ($/год)": m["latest_price_per_gpu"],
-                    "Заповнення (%)": m["occupancy_pct"],
-                    "Заробіток ($)": m["total_earned_usd"],
-                    "Прогноз ($/міс)": m.get("projected_monthly_usd", 0.0),
-                    "Надійність (%)": m.get("reliability_pct", 0.0),
-                    "Локація": m.get("geolocation", "—"),
-                    "Останній зріз": str(m.get("latest_snapshot_time") or "—"),
-                })
-            comp_df = pd.DataFrame(comp_table_rows)
+                # Comparison Overview Table
+                st.markdown("##### 📋 Зведена таблиця відстежуваних машин")
+                comp_table_rows = []
+                for m in mach_summaries:
+                    comp_table_rows.append({
+                        "Machine ID": m["machine_id"],
+                        "GPU Модель": m["display_name"],
+                        "GPU (шт)": m["num_gpus"],
+                        "Поточний стан": m["latest_status"],
+                        "Ціна ($/год)": m["latest_price_total"],
+                        "Ціна / 1 GPU ($/год)": m["latest_price_per_gpu"],
+                        "Заповнення (%)": m["occupancy_pct"],
+                        "Заробіток ($)": m["total_earned_usd"],
+                        "Прогноз ($/міс)": m.get("projected_monthly_usd", 0.0),
+                        "Надійність (%)": m.get("reliability_pct", 0.0),
+                        "Локація": m.get("geolocation", "—"),
+                        "Останній зріз": str(m.get("latest_snapshot_time") or "—"),
+                    })
+                comp_df = pd.DataFrame(comp_table_rows)
 
-            mach_col_order = render_column_order_selector("machines_overview_table", list(comp_df.columns))
-            st.dataframe(
-                comp_df,
-                column_order=mach_col_order,
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "Machine ID": st.column_config.NumberColumn("Machine ID", format="%d"),
-                    "GPU Модель": "Модель GPU",
-                    "GPU (шт)": st.column_config.NumberColumn("GPU (шт)", format="%d"),
-                    "Поточний стан": st.column_config.TextColumn("Поточний стан", width="medium"),
-                    "Ціна ($/год)": st.column_config.NumberColumn("Ціна машини ($/год)", format="$%.4f"),
-                    "Ціна / 1 GPU ($/год)": st.column_config.NumberColumn("Ціна / 1 GPU ($/год)", format="$%.4f"),
-                    "Заповнення (%)": st.column_config.ProgressColumn("Заповнення / Утилізація", min_value=0, max_value=100, format="%.1f%%"),
-                    "Заробіток ($)": st.column_config.NumberColumn(f"Зароблено за {mach_days_back}д", format="$%.2f"),
-                    "Прогноз ($/міс)": st.column_config.NumberColumn("Прогноз доходу ($/міс)", format="$%.2f"),
-                    "Надійність (%)": st.column_config.NumberColumn("Надійність (%)", format="%.1f%%"),
-                    "Локація": "Локація",
-                    "Останній зріз": "Останній зріз",
-                },
-            )
+                mach_col_order = render_column_order_selector("machines_overview_table", list(comp_df.columns))
+                st.dataframe(
+                    comp_df,
+                    column_order=mach_col_order,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Machine ID": st.column_config.NumberColumn("Machine ID", format="%d"),
+                        "GPU Модель": "Модель GPU",
+                        "GPU (шт)": st.column_config.NumberColumn("GPU (шт)", format="%d"),
+                        "Поточний стан": st.column_config.TextColumn("Поточний стан", width="medium"),
+                        "Ціна ($/год)": st.column_config.NumberColumn("Ціна машини ($/год)", format="$%.4f"),
+                        "Ціна / 1 GPU ($/год)": st.column_config.NumberColumn("Ціна / 1 GPU ($/год)", format="$%.4f"),
+                        "Заповнення (%)": st.column_config.ProgressColumn("Заповнення / Утилізація", min_value=0, max_value=100, format="%.1f%%"),
+                        "Заробіток ($)": st.column_config.NumberColumn(f"Зароблено за {mach_days_back}д", format="$%.2f"),
+                        "Прогноз ($/міс)": st.column_config.NumberColumn("Прогноз доходу ($/міс)", format="$%.2f"),
+                        "Надійність (%)": st.column_config.NumberColumn("Надійність (%)", format="%.1f%%"),
+                        "Локація": "Локація",
+                        "Останній зріз": "Останній зріз",
+                    },
+                )
 
-            # Deep-dive selection
-            st.markdown("---")
-            st.markdown("##### 🔍 Детальний аналіз конкретної машини (Deep Dive)")
+                # Deep-dive selection
+                st.markdown("---")
+                st.markdown("##### 🔍 Детальний аналіз конкретної машини (Deep Dive)")
 
-            selectable_machines = [m for m in mach_summaries if m.get("total_snapshots", 0) > 0]
-            if not selectable_machines:
-                st.warning("⚠️ За обраними Machine ID немає збереженої історії в базі. Натисніть «Оновити дані» або зачекайте автозбору.")
-            else:
-                m_labels = [f"Machine #{m['machine_id']} — {m['display_name']} ({m['num_gpus']}x GPU) | Заповнення {m['occupancy_pct']}%" for m in selectable_machines]
-                selected_label = st.selectbox("Оберіть машину для детального перегляду графіків:", options=m_labels, index=0)
-                selected_mach_id = selectable_machines[m_labels.index(selected_label)]["machine_id"]
-                curr_mach_metrics = next(m for m in selectable_machines if m["machine_id"] == selected_mach_id)
+                selectable_machines = [m for m in mach_summaries if m.get("total_snapshots", 0) > 0]
+                if not selectable_machines:
+                    st.warning("⚠️ За обраними Machine ID немає збереженої історії в базі. Натисніть «Оновити дані» або зачекайте автозбору.")
+                else:
+                    m_labels = [f"Machine #{m['machine_id']} — {m['display_name']} ({m['num_gpus']}x GPU) | Заповнення {m['occupancy_pct']}%" for m in selectable_machines]
+                    selected_label = st.selectbox("Оберіть машину для детального перегляду графіків:", options=m_labels, index=0)
+                    selected_mach_id = selectable_machines[m_labels.index(selected_label)]["machine_id"]
+                    curr_mach_metrics = next(m for m in selectable_machines if m["machine_id"] == selected_mach_id)
 
-                # Metric cards for single machine
-                dm1, dm2, dm3, dm4 = st.columns(4)
-                with dm1:
-                    st.metric(
-                        "🟢 Поточний стан",
-                        curr_mach_metrics["latest_status"],
-                        f"Оновлено: {format_time_ago(curr_mach_metrics['latest_snapshot_time'])}"
-                    )
-                with dm2:
-                    st.metric(
-                        "🏷️ Ставка оренди",
-                        f"${curr_mach_metrics['latest_price_total']:.4f}/год",
-                        f"${curr_mach_metrics['latest_price_per_gpu']:.4f}/год на 1 GPU"
-                    )
-                with dm3:
-                    st.metric(
-                        f"📊 Заповнення ({mach_days_back} днів)",
-                        f"{curr_mach_metrics['occupancy_pct']:.1f}%",
-                        f"{curr_mach_metrics['rented_snapshots']} з {curr_mach_metrics['total_snapshots']} зрізів в оренді"
-                    )
-                with dm4:
-                    st.metric(
-                        f"💵 Заробіток за {mach_days_back} днів",
-                        f"${curr_mach_metrics['total_earned_usd']:.2f}",
-                        f"Прогноз: ~${curr_mach_metrics['projected_monthly_usd']:.2f} / міс"
-                    )
-
-                # Hardware & Connection info row
-                spec_col1, spec_col2, spec_col3, spec_col4 = st.columns(4)
-                with spec_col1:
-                    st.caption(f"📍 **Локація:** {curr_mach_metrics['geolocation']}")
-                with spec_col2:
-                    st.caption(f"🛡️ **Надійність:** {curr_mach_metrics['reliability_pct']}%")
-                with spec_col3:
-                    st.caption(f"🏎️ **DLPerf:** {curr_mach_metrics['dlperf']}")
-                with spec_col4:
-                    st.caption(f"🌐 **Швидкість мережі:** ↓{curr_mach_metrics['inet_down_mbps']} / ↑{curr_mach_metrics['inet_up_mbps']} Mbps")
-
-                # Charts
-                mchart_col1, mchart_col2 = st.columns([3, 2])
-                with mchart_col1:
-                    price_fig = create_machine_price_timeline_chart(
-                        timeline_df=curr_mach_metrics["timeline_df"],
-                        machine_id=curr_mach_metrics["machine_id"],
-                        gpu_name=curr_mach_metrics["display_name"],
-                    )
-                    st.plotly_chart(price_fig, use_container_width=True)
-
-                with mchart_col2:
-                    st.markdown("##### ⏱️ Розподіл зайнятості у часі")
-                    state_fig = create_machine_occupancy_timeline_chart(
-                        timeline_df=curr_mach_metrics["timeline_df"],
-                        machine_id=curr_mach_metrics["machine_id"],
-                    )
-                    st.plotly_chart(state_fig, use_container_width=True)
-
-                    # Price stats breakdown
-                    st.markdown("##### 🏷️ Статистика цін машини за період")
-                    p_stat1, p_stat2, p_stat3 = st.columns(3)
-                    with p_stat1:
-                        st.caption(f"• **Мін. ціна:** ${curr_mach_metrics['min_price_total']:.4f}/год")
-                    with p_stat2:
-                        st.caption(f"• **Медіана:** ${curr_mach_metrics['median_price_total']:.4f}/год")
-                    with p_stat3:
-                        st.caption(f"• **Макс. ціна:** ${curr_mach_metrics['max_price_total']:.4f}/год")
-
-                # Market Benchmark
-                if not hist_summary_df.empty:
-                    gpu_bench = hist_summary_df[hist_summary_df["Карта"] == curr_mach_metrics["display_name"]]
-                    if not gpu_bench.empty:
-                        bench_row = gpu_bench.iloc[0]
-                        market_median = float(bench_row["Медіана ($/год)"])
-                        market_util = float(bench_row["Утилізація (%)"])
-
-                        mach_unit_price = curr_mach_metrics["latest_price_per_gpu"]
-                        price_diff_pct = ((mach_unit_price - market_median) / market_median * 100.0) if market_median > 0 else 0.0
-                        diff_sign = "+" if price_diff_pct > 0 else ""
-
-                        st.info(
-                            f"📊 **Порівняння з ринком Vast.ai ({curr_mach_metrics['display_name']}):** "
-                            f"Ваша ставка **${mach_unit_price:.4f}/год на 1 GPU** є на **{diff_sign}{price_diff_pct:.1f}%** "
-                            f"від медіани ринку (**${market_median:.4f}/год**). "
-                            f"Заповнення цієї машини: **{curr_mach_metrics['occupancy_pct']:.1f}%** "
-                            f"(середнє по ринку для цієї моделі: **{market_util:.1f}%**)."
+                    # Metric cards for single machine
+                    dm1, dm2, dm3, dm4 = st.columns(4)
+                    with dm1:
+                        st.metric(
+                            "🟢 Поточний стан",
+                            curr_mach_metrics["latest_status"],
+                            f"Оновлено: {format_time_ago(curr_mach_metrics['latest_snapshot_time'])}"
+                        )
+                    with dm2:
+                        st.metric(
+                            "🏷️ Ставка оренди",
+                            f"${curr_mach_metrics['latest_price_total']:.4f}/год",
+                            f"${curr_mach_metrics['latest_price_per_gpu']:.4f}/год на 1 GPU"
+                        )
+                    with dm3:
+                        st.metric(
+                            f"📊 Заповнення ({mach_days_back} днів)",
+                            f"{curr_mach_metrics['occupancy_pct']:.1f}%",
+                            f"{curr_mach_metrics['rented_snapshots']} з {curr_mach_metrics['total_snapshots']} зрізів в оренді"
+                        )
+                    with dm4:
+                        st.metric(
+                            f"💵 Заробіток за {mach_days_back} днів",
+                            f"${curr_mach_metrics['total_earned_usd']:.2f}",
+                            f"Прогноз: ~${curr_mach_metrics['projected_monthly_usd']:.2f} / міс"
                         )
 
-                # History table for single machine
-                with st.expander(f"📋 Детальна історія всіх {len(curr_mach_metrics['timeline_df'])} зрізів для Machine #{selected_mach_id}", expanded=False):
-                    m_table_df = curr_mach_metrics["timeline_df"][[
-                        "snapshot_time", "display_name", "num_gpus", "dph_total", "dph_per_gpu", "status_label",
-                        "reliability_pct", "dlperf", "inet_down_mbps", "inet_up_mbps", "geolocation"
-                    ]].sort_values(by="snapshot_time", ascending=False)
+                    # Hardware & Connection info row
+                    spec_col1, spec_col2, spec_col3, spec_col4 = st.columns(4)
+                    with spec_col1:
+                        st.caption(f"📍 **Локація:** {curr_mach_metrics['geolocation']}")
+                    with spec_col2:
+                        st.caption(f"🛡️ **Надійність:** {curr_mach_metrics['reliability_pct']}%")
+                    with spec_col3:
+                        st.caption(f"🏎️ **DLPerf:** {curr_mach_metrics['dlperf']}")
+                    with spec_col4:
+                        st.caption(f"🌐 **Швидкість мережі:** ↓{curr_mach_metrics['inet_down_mbps']} / ↑{curr_mach_metrics['inet_up_mbps']} Mbps")
 
-                    st.dataframe(
-                        m_table_df,
-                        use_container_width=True,
-                        hide_index=True,
-                        column_config={
-                            "snapshot_time": "Час зрізу",
-                            "display_name": "Модель GPU",
-                            "num_gpus": "GPU (шт)",
-                            "dph_total": st.column_config.NumberColumn("Ціна машини ($/год)", format="$%.4f"),
-                            "dph_per_gpu": st.column_config.NumberColumn("Ціна / 1 GPU ($/год)", format="$%.4f"),
-                            "status_label": "Статус",
-                            "reliability_pct": st.column_config.NumberColumn("Надійність (%)", format="%.1f%%"),
-                            "dlperf": "DLPerf",
-                            "inet_down_mbps": "Down (Mbps)",
-                            "inet_up_mbps": "Up (Mbps)",
-                            "geolocation": "Локація",
-                        },
-                    )
+                    # Charts
+                    mchart_col1, mchart_col2 = st.columns([3, 2])
+                    with mchart_col1:
+                        price_fig = create_machine_price_timeline_chart(
+                            timeline_df=curr_mach_metrics["timeline_df"],
+                            machine_id=curr_mach_metrics["machine_id"],
+                            gpu_name=curr_mach_metrics["display_name"],
+                        )
+                        st.plotly_chart(price_fig, use_container_width=True)
 
-                    csv_m = m_table_df.to_csv(index=False).encode("utf-8")
-                    st.download_button(
-                        label=f"📥 Експорт історії Machine #{selected_mach_id} у CSV",
-                        data=csv_m,
-                        file_name=f"vast_machine_{selected_mach_id}_history_{datetime.date.today()}.csv",
-                        mime="text/csv",
-                    )
+                    with mchart_col2:
+                        st.markdown("##### ⏱️ Розподіл зайнятості у часі")
+                        state_fig = create_machine_occupancy_timeline_chart(
+                            timeline_df=curr_mach_metrics["timeline_df"],
+                            machine_id=curr_mach_metrics["machine_id"],
+                        )
+                        st.plotly_chart(state_fig, use_container_width=True)
 
-    # Explorer section for all machines
-    with st.expander(f"🌐 Каталог усіх активних машин у базі даних SQLite ({days_back} днів)", expanded=False):
-        if all_machines_db.empty:
-            st.info("ℹ️ У базі даних ще немає записів про машини.")
-        else:
-            st.caption(f"Знайдено **{len(all_machines_db):,}** унікальних машин, збережених у системі. Використовуйте Machine ID для відстеження.")
-            st.dataframe(
-                all_machines_db[[
-                    "machine_id", "display_name", "num_gpus", "occupancy_pct", "avg_dph_total",
-                    "avg_dph_per_gpu", "avg_reliability", "geolocation", "total_snapshots", "last_seen"
-                ]],
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "machine_id": st.column_config.NumberColumn("Machine ID", format="%d"),
-                    "display_name": "Модель GPU",
-                    "num_gpus": "GPU (шт)",
-                    "occupancy_pct": st.column_config.ProgressColumn("Заповнення / Утилізація", min_value=0, max_value=100, format="%.1f%%"),
-                    "avg_dph_total": st.column_config.NumberColumn("Сер. ціна машини ($/год)", format="$%.4f"),
-                    "avg_dph_per_gpu": st.column_config.NumberColumn("Сер. ціна / 1 GPU ($/год)", format="$%.4f"),
-                    "avg_reliability": st.column_config.NumberColumn("Надійність (%)", format="%.1f%%"),
-                    "geolocation": "Локація",
-                    "total_snapshots": st.column_config.NumberColumn("Зрізів у БД", format="%d"),
-                    "last_seen": "Останній зріз",
-                },
-            )
+                        # Price stats breakdown
+                        st.markdown("##### 🏷️ Статистика цін машини за період")
+                        p_stat1, p_stat2, p_stat3 = st.columns(3)
+                        with p_stat1:
+                            st.caption(f"• **Мін. ціна:** ${curr_mach_metrics['min_price_total']:.4f}/год")
+                        with p_stat2:
+                            st.caption(f"• **Медіана:** ${curr_mach_metrics['median_price_total']:.4f}/год")
+                        with p_stat3:
+                            st.caption(f"• **Макс. ціна:** ${curr_mach_metrics['max_price_total']:.4f}/год")
+
+                    # Market Benchmark
+                    if not hist_summary_df.empty:
+                        gpu_bench = hist_summary_df[hist_summary_df["Карта"] == curr_mach_metrics["display_name"]]
+                        if not gpu_bench.empty:
+                            bench_row = gpu_bench.iloc[0]
+                            market_median = float(bench_row["Медіана ($/год)"])
+                            market_util = float(bench_row["Утилізація (%)"])
+
+                            mach_unit_price = curr_mach_metrics["latest_price_per_gpu"]
+                            price_diff_pct = ((mach_unit_price - market_median) / market_median * 100.0) if market_median > 0 else 0.0
+                            diff_sign = "+" if price_diff_pct > 0 else ""
+
+                            st.info(
+                                f"📊 **Порівняння з ринком Vast.ai ({curr_mach_metrics['display_name']}):** "
+                                f"Ваша ставка **${mach_unit_price:.4f}/год на 1 GPU** є на **{diff_sign}{price_diff_pct:.1f}%** "
+                                f"від медіани ринку (**${market_median:.4f}/год**). "
+                                f"Заповнення цієї машини: **{curr_mach_metrics['occupancy_pct']:.1f}%** "
+                                f"(середнє по ринку для цієї моделі: **{market_util:.1f}%**)."
+                            )
+
+                    # History table for single machine
+                    with st.expander(f"📋 Детальна історія всіх {len(curr_mach_metrics['timeline_df'])} зрізів для Machine #{selected_mach_id}", expanded=False):
+                        m_table_df = curr_mach_metrics["timeline_df"][[
+                            "snapshot_time", "display_name", "num_gpus", "dph_total", "dph_per_gpu", "status_label",
+                            "reliability_pct", "dlperf", "inet_down_mbps", "inet_up_mbps", "geolocation"
+                        ]].sort_values(by="snapshot_time", ascending=False)
+
+                        st.dataframe(
+                            m_table_df,
+                            use_container_width=True,
+                            hide_index=True,
+                            column_config={
+                                "snapshot_time": "Час зрізу",
+                                "display_name": "Модель GPU",
+                                "num_gpus": "GPU (шт)",
+                                "dph_total": st.column_config.NumberColumn("Ціна машини ($/год)", format="$%.4f"),
+                                "dph_per_gpu": st.column_config.NumberColumn("Ціна / 1 GPU ($/год)", format="$%.4f"),
+                                "status_label": "Статус",
+                                "reliability_pct": st.column_config.NumberColumn("Надійність (%)", format="%.1f%%"),
+                                "dlperf": "DLPerf",
+                                "inet_down_mbps": "Down (Mbps)",
+                                "inet_up_mbps": "Up (Mbps)",
+                                "geolocation": "Локація",
+                            },
+                        )
+
+                        csv_m = m_table_df.to_csv(index=False).encode("utf-8")
+                        st.download_button(
+                            label=f"📥 Експорт історії Machine #{selected_mach_id} у CSV",
+                            data=csv_m,
+                            file_name=f"vast_machine_{selected_mach_id}_history_{datetime.date.today()}.csv",
+                            mime="text/csv",
+                        )
+
+        # Explorer section for all machines
+        with st.expander(f"🌐 Каталог усіх активних машин у базі даних SQLite ({days_back} днів)", expanded=False):
+            if all_machines_db.empty:
+                st.info("ℹ️ У базі даних ще немає записів про машини.")
+            else:
+                st.caption(f"Знайдено **{len(all_machines_db):,}** унікальних машин, збережених у системі. Використовуйте Machine ID для відстеження.")
+                st.dataframe(
+                    all_machines_db[[
+                        "machine_id", "display_name", "num_gpus", "occupancy_pct", "avg_dph_total",
+                        "avg_dph_per_gpu", "avg_reliability", "geolocation", "total_snapshots", "last_seen"
+                    ]],
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "machine_id": st.column_config.NumberColumn("Machine ID", format="%d"),
+                        "display_name": "Модель GPU",
+                        "num_gpus": "GPU (шт)",
+                        "occupancy_pct": st.column_config.ProgressColumn("Заповнення / Утилізація", min_value=0, max_value=100, format="%.1f%%"),
+                        "avg_dph_total": st.column_config.NumberColumn("Сер. ціна машини ($/год)", format="$%.4f"),
+                        "avg_dph_per_gpu": st.column_config.NumberColumn("Сер. ціна / 1 GPU ($/год)", format="$%.4f"),
+                        "avg_reliability": st.column_config.NumberColumn("Надійність (%)", format="%.1f%%"),
+                        "geolocation": "Локація",
+                        "total_snapshots": st.column_config.NumberColumn("Зрізів у БД", format="%d"),
+                        "last_seen": "Останній зріз",
+                    },
+                )
 
 
 
