@@ -882,8 +882,10 @@ class VastAIClient:
             machine_id = o.get("machine_id", "")
             host_id = int(o.get("host_id") or 0) if o.get("host_id") else None
             bundle_id = o.get("bundle_id") or o.get("id")
+            now_str = get_kyiv_now().strftime("%Y-%m-%d %H:%M:%S")
 
             records.append({
+                "snapshot_time": now_str,
                 "bundle_id": bundle_id,
                 "machine_id": machine_id,
                 "host_id": host_id,
@@ -966,7 +968,9 @@ class VastAIClient:
             host_id = int(o.get("host_id") or 0) if o.get("host_id") else None
             bundle_id = o.get("bundle_id") or o.get("id")
 
+            now_str = get_kyiv_now().strftime("%Y-%m-%d %H:%M:%S")
             records.append({
+                "snapshot_time": now_str,
                 "bundle_id": bundle_id,
                 "machine_id": machine_id,
                 "host_id": host_id,
@@ -1048,8 +1052,10 @@ class VastAIClient:
             machine_id = o.get("machine_id", "")
             host_id = int(o.get("host_id") or 0) if o.get("host_id") else None
             bundle_id = o.get("bundle_id") or o.get("id")
+            now_str = get_kyiv_now().strftime("%Y-%m-%d %H:%M:%S")
 
             records.append({
+                "snapshot_time": now_str,
                 "bundle_id": bundle_id,
                 "machine_id": machine_id,
                 "host_id": host_id,
@@ -1415,6 +1421,8 @@ class VastAIClient:
             return {}
 
         df = machine_df.copy()
+        if "snapshot_time" not in df.columns or df["snapshot_time"].dropna().empty:
+            df["snapshot_time"] = get_kyiv_now().strftime("%Y-%m-%d %H:%M:%S")
         df["snapshot_time"] = pd.to_datetime(df["snapshot_time"])
         df = df.sort_values(by="snapshot_time", ascending=True)
 
@@ -1610,6 +1618,8 @@ class VastAIClient:
             return {}
 
         df = host_df.copy()
+        if "snapshot_time" not in df.columns or df["snapshot_time"].dropna().empty:
+            df["snapshot_time"] = get_kyiv_now().strftime("%Y-%m-%d %H:%M:%S")
         df["snapshot_time"] = pd.to_datetime(df["snapshot_time"])
         df = df.sort_values(by="snapshot_time", ascending=True)
 

@@ -1885,7 +1885,10 @@ with tab_machines:
             st.info("ℹ️ Введіть Host ID у поле вище для відображення всіх його машин.")
         else:
             primary_host_id = parsed_host_ids[0]
-            host_hist_df = VastAIClient.get_host_history(host_ids=[primary_host_id], days_back=host_days_back)
+            try:
+                host_hist_df = VastAIClient.get_host_history(host_ids=[primary_host_id], days_back=host_days_back)
+            except Exception:
+                host_hist_df = pd.DataFrame()
 
             if host_hist_df.empty:
                 try:
@@ -2056,7 +2059,10 @@ with tab_machines:
         st.info("ℹ️ Введіть Machine ID у поле вище або оберіть зі списку для відстеження.")
     else:
         # Load history for all tracked machines
-        all_mach_hist = VastAIClient.get_machine_history(machine_ids=parsed_ids, days_back=mach_days_back)
+        try:
+            all_mach_hist = VastAIClient.get_machine_history(machine_ids=parsed_ids, days_back=mach_days_back)
+        except Exception:
+            all_mach_hist = pd.DataFrame()
 
         # Build comparison summary list
         mach_summaries = []
