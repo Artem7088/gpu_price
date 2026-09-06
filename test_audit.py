@@ -26,10 +26,28 @@ def run_tests():
     print(f"   Total earned: ${metrics['total_earned_usd']}")
     print(f"   Projected monthly: ${metrics['projected_monthly_usd']}")
 
-    print("4. Testing preferences loading & saving...")
+    print("4. Testing Host Fleet functions...")
+    client = VastAIClient()
+    host_live = client.fetch_hosts_offers([69666])
+    print(f"   Host 69666 live offers: {len(host_live)}")
+    if not host_live.empty:
+        VastAIClient.record_raw_offers_snapshot(host_live)
+
+    all_hosts = VastAIClient.get_all_tracked_hosts_summary(days_back=7)
+    print(f"   Tracked hosts found: {len(all_hosts)}")
+
+    host_hist = VastAIClient.get_host_history([69666], days_back=7)
+    fleet = VastAIClient.calculate_host_fleet_metrics(host_hist)
+    print(f"   Host 69666 fleet machines: {fleet.get('total_machines')}, GPUs: {fleet.get('total_gpus')}")
+    print(f"   Fleet occupancy: {fleet.get('avg_occupancy_pct')}%")
+    assert not fleet['machines_summary_df'].empty, "Fleet machines summary is empty!"
+
+    print("5. Testing preferences loading & saving...")
     prefs = load_preferences()
     assert "watched_machine_ids" in prefs, "watched_machine_ids not in preferences!"
+    assert "watched_host_ids" in prefs, "watched_host_ids not in preferences!"
     print(f"   Watched machine IDs: {prefs.get('watched_machine_ids')}")
+    print(f"   Watched host IDs: {prefs.get('watched_host_ids')}")
 
     print("✅ All audit tests passed successfully!")
 

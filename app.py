@@ -785,6 +785,8 @@ with st.sidebar:
         st.session_state["saved_column_orders"] = saved_prefs.get("saved_column_orders", {})
     if "watched_machine_ids" not in st.session_state:
         st.session_state["watched_machine_ids"] = saved_prefs.get("watched_machine_ids", [55957, 29796])
+    if "watched_host_ids" not in st.session_state:
+        st.session_state["watched_host_ids"] = saved_prefs.get("watched_host_ids", [69666])
 
 
 
@@ -1075,7 +1077,7 @@ tab_price, tab_util, tab_profit, tab_machines, tab_summary, tab_offers, tab_hist
     "📈 Динаміка цін (P10 / Медіана / P90)",
     "⚡ Утилізація та доступність",
     "💰 Дохідність та ROI",
-    "🖥️ Відстеження машин (Machine ID)",
+    "🏢 Хостери та машини (Host & Machine ID)",
     "📋 Зведена таблиця",
     "🔍 Детальні пропозиції (Live)",
     "💾 Історичний датасет (SQLite)",
@@ -1807,35 +1809,214 @@ with tab_profit:
 
 
 with tab_machines:
-    st.markdown("#### 🖥️ Відстеження цін та заповнення машин за Machine ID")
-    st.caption("Детальний моніторинг конкретних хост-машин: історія цін оренди, динаміка фактичного заповнення (утилізації), оцінка заробітку та порівняння з ринком.")
+    st.markdown("#### 🏢 Моніторинг хостерів (Host ID) та конкретних машин (Machine ID)")
+    st.caption("Аналізуйте всі машини одного хостера (флот хоста) або окремі машини: історія цін оренди, фактичне заповнення (утилізація), оцінка заробітку та порівняння з ринком.")
 
-    # Controls row
-    m_col1, m_col2, m_col3 = st.columns([2.5, 1.5, 1])
-    with m_col1:
-        current_watched = st.session_state.get("watched_machine_ids", [55957, 29796])
-        input_ids_str = st.text_input(
-            "Введіть Machine ID (через кому або пробіл):",
-            value=", ".join(str(m) for m in current_watched),
-            placeholder="Наприклад: 55957, 29796, 140879, 148324",
-            help="Вкажіть один або кілька Machine ID хостів для відстеження їхньої утилізації та ставок оренди.",
-        )
-    with m_col2:
-        all_machines_db = VastAIClient.get_all_tracked_machines_summary(days_back=days_back)
-        quick_select_options = ["— Оберіть популярну машину з БД —"]
-        if not all_machines_db.empty:
-            for _, mrow in all_machines_db.head(25).iterrows():
-                quick_select_options.append(f"#{mrow['machine_id']} — {mrow['display_name']} ({mrow['num_gpus']}x) | Заповн: {mrow['occupancy_pct']}%")
+    tracking_mode = st.radio(
+        "Оберіть режим відстеження:",
+        [
+            "🏢 Відстеження всього флоту за Host ID (Всі машини хостера)",
+            "🖥️ Відстеження за Machine ID (Окремі машини)",
+        ],
+        horizontal=True,
+        index=0,
+    )
 
-        quick_picked = st.selectbox("Швидкий вибір із бази даних:", options=quick_select_options, index=0)
-    with m_col3:
-        mach_days_back = st.selectbox(
-            "Період аналізу:",
-            [1, 3, 7, 14, 30, 60],
-            index=2,  # 7 days
-            format_func=lambda d: f"{d} дн" if d != 1 else "24 год",
-            help="Період, за який розраховується заповнення та заробіток",
-        )
+    if "Host ID" in tracking_mode:
+        st.markdown("##### 🏢 Відстеження всіх машин конкретного хостера")
+        h_col1, h_col2, h_col3 = st.columns([2.5, 1.5, 1])
+        with h_col1:
+            current_watched_hosts = st.session_state.get("watched_host_ids", [69666])
+            input_host_str = st.text_input(
+                "Введіть Host ID (наприклад 69666 або декілька через кому):",
+                value=", ".join(str(h) for h in current_watched_hosts),
+                placeholder="Наприклад: 69666, 12841, 42830",
+                help="Host ID хостера на Vast.ai. Будуть відображені всі машини та GPU, що належать цьому хостеру.",
+            )
+        with h_col2:
+            all_hosts_db = VastAIClient.get_all_tracked_hosts_summary(days_back=days_back)
+            quick_host_options = ["— Оберіть популярного хостера з БД —"]
+            if not all_hosts_db.empty:
+                for _, hrow in all_hosts_db.head(25).iterrows():
+                    quick_host_options.append(f"Host #{hrow['host_id']} — {hrow['total_machines']} машин | Заповн: {hrow['occupancy_pct']}% | {hrow['geolocation']}")
+            quick_host_picked = st.selectbox("Швидкий вибір хостера з БД:", options=quick_host_options, index=0)
+
+        with h_col3:
+            host_days_back = st.selectbox(
+                "Період аналізу флоту:",
+                [1, 3, 7, 14, 30, 60],
+                index=2,
+                format_func=lambda d: f"{d} дн" if d != 1 else "24 год",
+                key="host_days_back_select",
+            )
+
+        # Parse host IDs
+        parsed_host_ids = []
+        for token in input_host_str.replace(";", ",").replace(" ", ",").split(","):
+            token = token.strip()
+            if token.isdigit():
+                val = int(token)
+                if val not in parsed_host_ids:
+                    parsed_host_ids.append(val)
+
+        if quick_host_picked != "— Оберіть популярного хостера з БД —":
+            try:
+                picked_hid = int(quick_host_picked.split()[1].replace("#", ""))
+                if picked_hid not in parsed_host_ids:
+                    parsed_host_ids.append(picked_hid)
+            except Exception:
+                pass
+
+        if parsed_host_ids != current_watched_hosts:
+            st.session_state["watched_host_ids"] = parsed_host_ids
+            save_preferences({"watched_host_ids": parsed_host_ids})
+
+        if not parsed_host_ids:
+            st.info("ℹ️ Введіть Host ID у поле вище для відображення всіх його машин.")
+        else:
+            primary_host_id = parsed_host_ids[0]
+            host_hist_df = VastAIClient.get_host_history(host_ids=[primary_host_id], days_back=host_days_back)
+
+            if host_hist_df.empty:
+                try:
+                    live_client = VastAIClient(api_key=api_key_input)
+                    live_host_df = live_client.fetch_hosts_offers([primary_host_id])
+                    if not live_host_df.empty:
+                        VastAIClient.record_raw_offers_snapshot(live_host_df)
+                        host_hist_df = live_host_df
+                except Exception:
+                    pass
+
+            fleet_metrics = VastAIClient.calculate_host_fleet_metrics(host_hist_df) if not host_hist_df.empty else {}
+
+            if not fleet_metrics or fleet_metrics.get("total_machines", 0) == 0:
+                st.warning(f"⚠️ Для Host ID #{primary_host_id} не знайдено машин на ринку Vast.ai або в базі даних. Перевірте правильність Host ID.")
+            else:
+                hm1, hm2, hm3, hm4 = st.columns(4)
+                with hm1:
+                    st.metric("🏢 Флот хостера", f"Host #{fleet_metrics['host_id']}", f"{fleet_metrics['total_machines']} машин ({fleet_metrics['total_gpus']} GPU)")
+                with hm2:
+                    rented_m = fleet_metrics["currently_rented_machines"]
+                    total_m = fleet_metrics["total_machines"]
+                    pct_active = (rented_m / total_m * 100.0) if total_m > 0 else 0.0
+                    st.metric("🟢 В оренді зараз", f"{rented_m} / {total_m} машин", f"{pct_active:.0f}% активні")
+                with hm3:
+                    st.metric(f"📊 Сер. заповнення флоту ({host_days_back}д)", f"{fleet_metrics['avg_occupancy_pct']:.1f}%", "фактична зайнятість")
+                with hm4:
+                    st.metric(f"💰 Заробіток флоту ({host_days_back}д)", f"${fleet_metrics['total_fleet_earned_usd']:,.2f}", f"Прогноз: ~${fleet_metrics['projected_fleet_monthly_usd']:,.2f}/міс")
+
+                st.caption(f"🎮 **Моделі GPU у флоті хостера:** {', '.join(fleet_metrics['gpu_models'])}")
+
+                st.markdown(f"##### 📋 Всі машини хостера #{primary_host_id} ({len(fleet_metrics['machines_summary_df'])} серверів)")
+                host_mach_order = render_column_order_selector("host_machines_table", list(fleet_metrics["machines_summary_df"].columns))
+                st.dataframe(
+                    fleet_metrics["machines_summary_df"],
+                    column_order=host_mach_order,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Machine ID": st.column_config.NumberColumn("Machine ID", format="%d"),
+                        "GPU Модель": "Модель GPU",
+                        "GPU (шт)": st.column_config.NumberColumn("GPU (шт)", format="%d"),
+                        "Поточний стан": st.column_config.TextColumn("Поточний стан", width="medium"),
+                        "Ціна ($/год)": st.column_config.NumberColumn("Ціна машини ($/год)", format="$%.4f"),
+                        "Ціна / 1 GPU ($/год)": st.column_config.NumberColumn("Ціна / 1 GPU ($/год)", format="$%.4f"),
+                        "Заповнення (%)": st.column_config.ProgressColumn("Заповнення / Утилізація", min_value=0, max_value=100, format="%.1f%%"),
+                        "Заробіток ($)": st.column_config.NumberColumn(f"Зароблено ({host_days_back}д)", format="$%.2f"),
+                        "Прогноз ($/міс)": st.column_config.NumberColumn("Прогноз доходу ($/міс)", format="$%.2f"),
+                        "Надійність (%)": st.column_config.NumberColumn("Надійність (%)", format="%.1f%%"),
+                        "DLPerf": "DLPerf",
+                        "Локація": "Локація",
+                        "Останній зріз": "Останній зріз",
+                    },
+                )
+
+                csv_fleet = fleet_metrics["machines_summary_df"].to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    label=f"📥 Експорт списку машин Host #{primary_host_id} у CSV",
+                    data=csv_fleet,
+                    file_name=f"vast_host_{primary_host_id}_machines_{datetime.date.today()}.csv",
+                    mime="text/csv",
+                )
+
+                st.markdown("---")
+                st.markdown(f"##### 🔍 Детальний перегляд машини хостера #{primary_host_id}")
+                host_m_options = [f"Machine #{row['Machine ID']} — {row['GPU Модель']} ({row['GPU (шт)']}x) | {row['Поточний стан']}" for _, row in fleet_metrics["machines_summary_df"].iterrows()]
+                selected_hm_label = st.selectbox("Оберіть машину для перегляду графіків:", options=host_m_options, index=0)
+                selected_hm_id = int(selected_hm_label.split()[1].replace("#", ""))
+
+                hm_sub = host_hist_df[host_hist_df["machine_id"] == selected_hm_id]
+                hm_metrics = VastAIClient.calculate_machine_detailed_metrics(hm_sub)
+
+                if hm_metrics:
+                    hchart1, hchart2 = st.columns([3, 2])
+                    with hchart1:
+                        price_fig = create_machine_price_timeline_chart(
+                            timeline_df=hm_metrics["timeline_df"],
+                            machine_id=hm_metrics["machine_id"],
+                            gpu_name=hm_metrics["display_name"],
+                        )
+                        st.plotly_chart(price_fig, use_container_width=True)
+                    with hchart2:
+                        st.markdown("##### ⏱️ Розподіл зайнятості у часі")
+                        state_fig = create_machine_occupancy_timeline_chart(
+                            timeline_df=hm_metrics["timeline_df"],
+                            machine_id=hm_metrics["machine_id"],
+                        )
+                        st.plotly_chart(state_fig, use_container_width=True)
+
+        with st.expander(f"🌐 Каталог найбільших хостерів ринку в базі SQLite ({days_back} днів)", expanded=False):
+            if all_hosts_db.empty:
+                st.info("ℹ️ У базі даних ще немає записів про хостерів.")
+            else:
+                st.caption(f"Знайдено **{len(all_hosts_db):,}** унікальних хостерів, збережених у системі.")
+                st.dataframe(
+                    all_hosts_db[[
+                        "host_id", "total_machines", "occupancy_pct", "avg_dph_total",
+                        "avg_dph_per_gpu", "avg_reliability", "geolocation", "total_snapshots", "last_seen"
+                    ]],
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "host_id": st.column_config.NumberColumn("Host ID", format="%d"),
+                        "total_machines": st.column_config.NumberColumn("Машин у флоті (шт)", format="%d"),
+                        "occupancy_pct": st.column_config.ProgressColumn("Заповнення флоту", min_value=0, max_value=100, format="%.1f%%"),
+                        "avg_dph_total": st.column_config.NumberColumn("Сер. ціна сервера ($/год)", format="$%.4f"),
+                        "avg_dph_per_gpu": st.column_config.NumberColumn("Сер. ціна / 1 GPU ($/год)", format="$%.4f"),
+                        "avg_reliability": st.column_config.NumberColumn("Надійність (%)", format="%.1f%%"),
+                        "geolocation": "Локація",
+                        "total_snapshots": st.column_config.NumberColumn("Зрізів у БД", format="%d"),
+                        "last_seen": "Останній зріз",
+                    },
+                )
+    else:
+        # Machine ID Mode
+        st.markdown("##### 🖥️ Відстеження конкретних машин за Machine ID")
+        m_col1, m_col2, m_col3 = st.columns([2.5, 1.5, 1])
+        with m_col1:
+            current_watched = st.session_state.get("watched_machine_ids", [55957, 29796])
+            input_ids_str = st.text_input(
+                "Введіть Machine ID (через кому або пробіл):",
+                value=", ".join(str(m) for m in current_watched),
+                placeholder="Наприклад: 55957, 29796, 140879, 148324",
+                help="Вкажіть один або кілька Machine ID хостів для відстеження їхньої утилізації та ставок оренди.",
+            )
+        with m_col2:
+            all_machines_db = VastAIClient.get_all_tracked_machines_summary(days_back=days_back)
+            quick_select_options = ["— Оберіть популярну машину з БД —"]
+            if not all_machines_db.empty:
+                for _, mrow in all_machines_db.head(25).iterrows():
+                    quick_select_options.append(f"#{mrow['machine_id']} — {mrow['display_name']} ({mrow['num_gpus']}x) | Заповн: {mrow['occupancy_pct']}%")
+
+            quick_picked = st.selectbox("Швидкий вибір із бази даних:", options=quick_select_options, index=0)
+        with m_col3:
+            mach_days_back = st.selectbox(
+                "Період аналізу:",
+                [1, 3, 7, 14, 30, 60],
+                index=2,  # 7 days
+                format_func=lambda d: f"{d} дн" if d != 1 else "24 год",
+                help="Період, за який розраховується заповнення та заробіток",
+            )
 
     # Parse entered machine IDs
     parsed_ids = []
