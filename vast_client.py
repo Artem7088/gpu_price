@@ -284,6 +284,7 @@ DEFAULT_PREFERENCES = {
     "price_mode": "per_gpu",
     "preset_period": "7 днів",
     "auto_refresh": False,
+    "watched_machine_ids": [55957, 29796],
 }
 
 
@@ -888,6 +889,88 @@ class VastAIClient:
 
         return pd.DataFrame(records)
 
+    def fetch_machines_offers(self, machine_ids: List[Union[int, str]]) -> pd.DataFrame:
+        """Fetches live offers for specific machine IDs directly via Vast.ai API."""
+        if not machine_ids:
+            return pd.DataFrame()
+
+        clean_ids = []
+        for mid in machine_ids:
+            try:
+                clean_ids.append(int(mid))
+            except (ValueError, TypeError):
+                pass
+
+        if not clean_ids:
+            return pd.DataFrame()
+
+        all_offers = []
+        seen_ids = set()
+
+        # Batch in chunks of 50 to avoid request URL length limits
+        chunk_size = 50
+        for i in range(0, len(clean_ids), chunk_size):
+            chunk = clean_ids[i:i + chunk_size]
+            query = {"machine_id": {"in": chunk}}
+            try:
+                data = self._request("bundles/", params={"q": json.dumps(query)})
+                offers = data.get("offers", [])
+                for o in offers:
+                    oid = o.get("id") or o.get("bundle_id")
+                    if oid not in seen_ids:
+                        seen_ids.add(oid)
+                        all_offers.append(o)
+            except Exception as e:
+                logger.warning(f"Error fetching offers for machine batch {chunk}: {e}")
+
+        if not all_offers:
+            return pd.DataFrame()
+
+        records = []
+        for o in all_offers:
+            raw_gpu_name = o.get("gpu_name", "Unknown")
+            gpu_ram = float(o.get("gpu_ram") or 0.0)
+            gpu_ram_gb = round(gpu_ram / 1024, 1)
+            num_gpus = int(o.get("num_gpus") or 1)
+            dph_total = float(o.get("dph_total") or 0.0)
+            dph_base = float(o.get("dph_base") or dph_total)
+            dph_per_gpu = round(dph_total / num_gpus, 4) if num_gpus > 0 else dph_total
+
+            display_name = self.classify_gpu_display_name(raw_gpu_name, gpu_ram)
+
+            rentable = bool(o.get("rentable", False))
+            rented = bool(o.get("rented", False))
+            is_bid = bool(o.get("is_bid", False))
+            reliability = float(o.get("reliability2") or o.get("reliability") or 0.0) * 100
+            dlperf = float(o.get("dlperf") or 0.0)
+            inet_down = float(o.get("inet_down") or 0.0)
+            inet_up = float(o.get("inet_up") or 0.0)
+            geolocation = str(o.get("geolocation") or o.get("geolocode") or "Unknown")
+            machine_id = o.get("machine_id", "")
+            bundle_id = o.get("bundle_id") or o.get("id")
+
+            records.append({
+                "bundle_id": bundle_id,
+                "machine_id": machine_id,
+                "raw_gpu_name": raw_gpu_name,
+                "display_name": display_name,
+                "gpu_ram_gb": gpu_ram_gb,
+                "num_gpus": num_gpus,
+                "dph_total": dph_total,
+                "dph_per_gpu": dph_per_gpu,
+                "dph_base": dph_base,
+                "rentable": rentable,
+                "rented": rented,
+                "is_bid": is_bid,
+                "reliability_pct": round(reliability, 1),
+                "dlperf": round(dlperf, 2),
+                "inet_down_mbps": round(inet_down, 1),
+                "inet_up_mbps": round(inet_up, 1),
+                "geolocation": geolocation,
+            })
+
+        return pd.DataFrame(records)
+
 
     @staticmethod
     def filter_offers(
@@ -1140,6 +1223,188 @@ class VastAIClient:
         except Exception as e:
             logger.error(f"Error reading raw history from DB: {e}")
             return pd.DataFrame()
+
+    @staticmethod
+    def get_machine_history(
+        machine_ids: List[Union[int, str]],
+        days_back: int = 30,
+        db_path: str = DB_PATH
+    ) -> pd.DataFrame:
+        """Retrieves raw snapshot history for specific machine IDs from SQLite database."""
+        if not machine_ids:
+            return pd.DataFrame()
+
+        clean_ids = []
+        for mid in machine_ids:
+            try:
+                clean_ids.append(int(mid))
+            except (ValueError, TypeError):
+                pass
+
+        if not clean_ids:
+            return pd.DataFrame()
+
+        try:
+            conn = sqlite3.connect(db_path)
+            since_time = (get_kyiv_now() - datetime.timedelta(days=days_back)).strftime("%Y-%m-%d %H:%M:%S")
+            placeholders = ",".join("?" * len(clean_ids))
+            query = f"""
+                SELECT * FROM raw_offers_history 
+                WHERE machine_id IN ({placeholders}) AND snapshot_time >= ?
+                ORDER BY snapshot_time ASC
+            """
+            params = clean_ids + [since_time]
+            df = pd.read_sql_query(query, conn, params=params)
+            conn.close()
+
+            if df.empty:
+                return pd.DataFrame()
+
+            df["snapshot_time"] = pd.to_datetime(df["snapshot_time"])
+            return df
+        except Exception as e:
+            logger.error(f"Error reading machine history from DB: {e}")
+            return pd.DataFrame()
+
+    @staticmethod
+    def get_all_tracked_machines_summary(
+        days_back: int = 7,
+        db_path: str = DB_PATH
+    ) -> pd.DataFrame:
+        """Returns summary list of all active machines recorded in SQLite database."""
+        try:
+            conn = sqlite3.connect(db_path)
+            since_time = (get_kyiv_now() - datetime.timedelta(days=days_back)).strftime("%Y-%m-%d %H:%M:%S")
+            query = """
+                SELECT 
+                    machine_id,
+                    display_name,
+                    MAX(num_gpus) as num_gpus,
+                    MAX(gpu_ram_gb) as gpu_ram_gb,
+                    COUNT(DISTINCT snapshot_time) as total_snapshots,
+                    SUM(CASE WHEN rentable = 0 THEN 1 ELSE 0 END) as rented_records,
+                    COUNT(*) as total_records,
+                    ROUND(AVG(dph_total), 4) as avg_dph_total,
+                    ROUND(AVG(dph_per_gpu), 4) as avg_dph_per_gpu,
+                    ROUND(AVG(reliability_pct), 1) as avg_reliability,
+                    MAX(geolocation) as geolocation,
+                    MAX(snapshot_time) as last_seen
+                FROM raw_offers_history
+                WHERE machine_id IS NOT NULL AND machine_id != 0 AND snapshot_time >= ?
+                GROUP BY machine_id, display_name
+                ORDER BY total_snapshots DESC, last_seen DESC
+            """
+            df = pd.read_sql_query(query, conn, params=[since_time])
+            conn.close()
+
+            if df.empty:
+                return pd.DataFrame()
+
+            # Calculate occupancy %
+            df["occupancy_pct"] = (df["rented_records"] / df["total_records"] * 100.0).round(1)
+            return df
+        except Exception as e:
+            logger.error(f"Error reading all machines summary: {e}")
+            return pd.DataFrame()
+
+    @staticmethod
+    def calculate_machine_detailed_metrics(machine_df: pd.DataFrame) -> Dict[str, Any]:
+        """Calculates rich metrics, occupancy stats, and revenue estimates for a machine."""
+        if machine_df.empty:
+            return {}
+
+        df = machine_df.copy()
+        df["snapshot_time"] = pd.to_datetime(df["snapshot_time"])
+        df = df.sort_values(by="snapshot_time", ascending=True)
+
+        # Aggregate by snapshot_time to get machine-level state per snapshot
+        snap_df = df.groupby("snapshot_time").agg({
+            "machine_id": "first",
+            "display_name": "first",
+            "raw_gpu_name": "first",
+            "num_gpus": "max",
+            "gpu_ram_gb": "max",
+            "dph_total": "max",
+            "dph_per_gpu": "mean",
+            "rentable": "min",  # 0 if rented / occupied, 1 if available
+            "rented": "max",
+            "reliability_pct": "mean",
+            "dlperf": "max",
+            "inet_down_mbps": "mean",
+            "inet_up_mbps": "mean",
+            "geolocation": "first",
+        }).reset_index()
+
+        total_snaps = len(snap_df)
+        rented_snaps = int((snap_df["rentable"] == 0).sum())
+        available_snaps = total_snaps - rented_snaps
+        occupancy_pct = round((rented_snaps / total_snaps * 100.0), 1) if total_snaps > 0 else 0.0
+
+        latest_snap = snap_df.iloc[-1]
+        is_rented_now = (latest_snap["rentable"] == 0)
+        latest_status = "🟢 В оренді (Зайнята)" if is_rented_now else "🟡 Вільна (Доступна)"
+
+        # Prices
+        prices_per_gpu = snap_df["dph_per_gpu"]
+        prices_total = snap_df["dph_total"]
+
+        # Calculate estimated historical revenue
+        total_earned = 0.0
+        for i in range(len(snap_df) - 1):
+            t0 = snap_df.iloc[i]["snapshot_time"]
+            t1 = snap_df.iloc[i + 1]["snapshot_time"]
+            dur_hours = (t1 - t0).total_seconds() / 3600.0
+            if dur_hours > 0.5:
+                dur_hours = 5.0 / 60.0  # 5 min nominal interval
+            if snap_df.iloc[i]["rentable"] == 0:
+                total_earned += snap_df.iloc[i]["dph_total"] * dur_hours
+
+        # Add estimate for the last interval if rented
+        if is_rented_now:
+            total_earned += latest_snap["dph_total"] * (5.0 / 60.0)
+
+        # Projected revenues
+        curr_total_price = float(latest_snap["dph_total"])
+        projected_monthly_usd = round(curr_total_price * 730 * (occupancy_pct / 100.0), 2)
+        projected_daily_usd = round(curr_total_price * 24 * (occupancy_pct / 100.0), 2)
+
+        snap_df["status_label"] = snap_df["rentable"].apply(
+            lambda r: "В оренді (Зайнята)" if r == 0 else "Вільна (Доступна)"
+        )
+
+        return {
+            "machine_id": int(latest_snap["machine_id"]),
+            "display_name": str(latest_snap["display_name"]),
+            "raw_gpu_name": str(latest_snap["raw_gpu_name"]),
+            "num_gpus": int(latest_snap["num_gpus"]),
+            "gpu_ram_gb": float(latest_snap["gpu_ram_gb"]),
+            "geolocation": str(latest_snap["geolocation"]),
+            "reliability_pct": float(round(latest_snap["reliability_pct"], 1)),
+            "dlperf": float(round(latest_snap["dlperf"], 2)),
+            "inet_down_mbps": float(round(latest_snap["inet_down_mbps"], 1)),
+            "inet_up_mbps": float(round(latest_snap["inet_up_mbps"], 1)),
+            "total_snapshots": total_snaps,
+            "rented_snapshots": rented_snaps,
+            "available_snapshots": available_snaps,
+            "occupancy_pct": occupancy_pct,
+            "latest_snapshot_time": latest_snap["snapshot_time"],
+            "latest_status": latest_status,
+            "is_rented_now": is_rented_now,
+            "latest_price_per_gpu": float(round(latest_snap["dph_per_gpu"], 4)),
+            "latest_price_total": float(round(latest_snap["dph_total"], 4)),
+            "min_price_per_gpu": float(round(prices_per_gpu.min(), 4)),
+            "max_price_per_gpu": float(round(prices_per_gpu.max(), 4)),
+            "mean_price_per_gpu": float(round(prices_per_gpu.mean(), 4)),
+            "median_price_per_gpu": float(round(prices_per_gpu.median(), 4)),
+            "min_price_total": float(round(prices_total.min(), 4)),
+            "max_price_total": float(round(prices_total.max(), 4)),
+            "mean_price_total": float(round(prices_total.mean(), 4)),
+            "median_price_total": float(round(prices_total.median(), 4)),
+            "total_earned_usd": float(round(total_earned, 2)),
+            "projected_daily_usd": projected_daily_usd,
+            "projected_monthly_usd": projected_monthly_usd,
+            "timeline_df": snap_df,
+        }
 
     @staticmethod
     def get_db_stats_info(db_path: str = DB_PATH) -> Dict[str, Any]:
