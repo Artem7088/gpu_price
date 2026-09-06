@@ -1884,21 +1884,44 @@ with tab_machines:
         if not parsed_host_ids:
             st.info("ℹ️ Введіть Host ID у поле вище для відображення всіх його машин.")
         else:
-            primary_host_id = parsed_host_ids[0]
+            if len(parsed_host_ids) > 1:
+                primary_host_id = st.selectbox(
+                    "Оберіть Host ID для детального перегляду:",
+                    options=parsed_host_ids,
+                    format_func=lambda hid: f"Host #{hid}",
+                    key="active_host_id_select"
+                )
+            else:
+                primary_host_id = parsed_host_ids[0]
+
+            col_h_act1, col_h_act2 = st.columns([1.8, 4])
+            with col_h_act1:
+                refresh_host_btn = st.button("🔄 Оновити флот з Vast.ai API", key="refresh_host_api_btn", use_container_width=True)
+
             try:
                 host_hist_df = VastAIClient.get_host_history(host_ids=[primary_host_id], days_back=host_days_back)
             except Exception:
                 host_hist_df = pd.DataFrame()
 
-            if host_hist_df.empty:
-                try:
-                    live_client = VastAIClient(api_key=api_key_input)
-                    live_host_df = live_client.fetch_hosts_offers([primary_host_id])
-                    if not live_host_df.empty:
-                        VastAIClient.record_raw_offers_snapshot(live_host_df)
-                        host_hist_df = live_host_df
-                except Exception:
-                    pass
+            if host_hist_df.empty or refresh_host_btn:
+                with st.spinner(f"⚡ Отримання свіжих даних флоту Host #{primary_host_id} з Vast.ai API..."):
+                    try:
+                        live_client = VastAIClient(api_key=api_key_input)
+                        live_host_df = live_client.fetch_hosts_offers([primary_host_id])
+                        if not live_host_df.empty:
+                            VastAIClient.record_raw_offers_snapshot(live_host_df)
+                            if not host_hist_df.empty:
+                                host_hist_df = pd.concat([host_hist_df, live_host_df], ignore_index=True).drop_duplicates(
+                                    subset=["bundle_id", "snapshot_time"], keep="last"
+                                )
+                            else:
+                                host_hist_df = live_host_df
+                            st.toast(f"✅ Знайдено {len(live_host_df)} пропозицій для Host #{primary_host_id}!", icon="⚡")
+                        else:
+                            if host_hist_df.empty:
+                                st.warning(f"⚠️ Vast.ai API не повернуло активних пропозицій для Host #{primary_host_id}.")
+                    except Exception as e:
+                        logger.warning(f"Host live fetch warning: {e}")
 
             fleet_metrics = VastAIClient.calculate_host_fleet_metrics(host_hist_df) if not host_hist_df.empty else {}
 
@@ -2058,11 +2081,36 @@ with tab_machines:
         if not parsed_ids:
             st.info("ℹ️ Введіть Machine ID у поле вище або оберіть зі списку для відстеження.")
         else:
+            col_m_act1, col_m_act2 = st.columns([1.8, 4])
+            with col_m_act1:
+                refresh_mach_btn = st.button("🔄 Оновити машини з Vast.ai API", key="refresh_mach_api_btn", use_container_width=True)
+
             # Load history for all tracked machines
             try:
                 all_mach_hist = VastAIClient.get_machine_history(machine_ids=parsed_ids, days_back=mach_days_back)
             except Exception:
                 all_mach_hist = pd.DataFrame()
+
+            # Identify which machine IDs have no records or if user requested refresh
+            existing_mids = set(all_mach_hist["machine_id"].unique()) if not all_mach_hist.empty else set()
+            mids_to_fetch = parsed_ids if refresh_mach_btn else [mid for mid in parsed_ids if mid not in existing_mids]
+
+            if mids_to_fetch:
+                with st.spinner(f"⚡ Отримання даних з Vast.ai API для Machine ID: {', '.join(str(m) for m in mids_to_fetch)}..."):
+                    try:
+                        live_client = VastAIClient(api_key=api_key_input)
+                        live_mach_df = live_client.fetch_machines_offers(mids_to_fetch)
+                        if not live_mach_df.empty:
+                            VastAIClient.record_raw_offers_snapshot(live_mach_df)
+                            if not all_mach_hist.empty:
+                                all_mach_hist = pd.concat([all_mach_hist, live_mach_df], ignore_index=True).drop_duplicates(
+                                    subset=["bundle_id", "snapshot_time"], keep="last"
+                                )
+                            else:
+                                all_mach_hist = live_mach_df
+                            st.toast(f"✅ Знайдено {len(live_mach_df)} пропозицій для обраних машин!", icon="⚡")
+                    except Exception as e:
+                        logger.warning(f"Machine live fetch warning: {e}")
 
             # Build comparison summary list
             mach_summaries = []
@@ -2072,32 +2120,21 @@ with tab_machines:
                     m_metrics = VastAIClient.calculate_machine_detailed_metrics(m_sub)
                     mach_summaries.append(m_metrics)
                 else:
-                    try:
-                        live_client = VastAIClient(api_key=api_key_input)
-                        live_df = live_client.fetch_machines_offers([mid])
-                        if not live_df.empty:
-                            VastAIClient.record_raw_offers_snapshot(live_df)
-                            m_sub = live_df
-                            m_metrics = VastAIClient.calculate_machine_detailed_metrics(m_sub)
-                            mach_summaries.append(m_metrics)
-                        else:
-                            mach_summaries.append({
-                                "machine_id": mid,
-                                "display_name": "Немає в БД",
-                                "num_gpus": 0,
-                                "occupancy_pct": 0.0,
-                                "latest_status": "⚪ Немає даних",
-                                "latest_price_total": 0.0,
-                                "latest_price_per_gpu": 0.0,
-                                "total_earned_usd": 0.0,
-                                "projected_monthly_usd": 0.0,
-                                "reliability_pct": 0.0,
-                                "geolocation": "—",
-                                "latest_snapshot_time": None,
-                                "total_snapshots": 0,
-                            })
-                    except Exception:
-                        pass
+                    mach_summaries.append({
+                        "machine_id": mid,
+                        "display_name": "Не знайдено на Vast.ai",
+                        "num_gpus": 0,
+                        "occupancy_pct": 0.0,
+                        "latest_status": "⚪ Немає даних",
+                        "latest_price_total": 0.0,
+                        "latest_price_per_gpu": 0.0,
+                        "total_earned_usd": 0.0,
+                        "projected_monthly_usd": 0.0,
+                        "reliability_pct": 0.0,
+                        "geolocation": "—",
+                        "latest_snapshot_time": None,
+                        "total_snapshots": 0,
+                    })
 
             if mach_summaries:
                 valid_summaries = [m for m in mach_summaries if m.get("total_snapshots", 0) > 0]

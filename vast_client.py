@@ -482,6 +482,31 @@ class VastAIClient:
                         raise VastAPIError(f"Неможливо розпарсити відповідь API: {e}")
 
                 elif response.status_code in (401, 403):
+                    # If authorization failed on public bundles endpoint, fallback to anonymous request
+                    if self.api_key and "bundles" in endpoint:
+                        logger.warning("Auth header rejected on bundles endpoint, falling back to anonymous request...")
+                        try:
+                            anon_headers = {
+                                "Accept": "application/json",
+                                "Content-Type": "application/json",
+                                "User-Agent": "VastGPUPriceMonitor/1.0",
+                            }
+                            anon_resp = requests.request(
+                                method=method,
+                                url=url,
+                                headers=anon_headers,
+                                params=params,
+                                json=json_data,
+                                timeout=15,
+                            )
+                            if anon_resp.status_code == 200:
+                                try:
+                                    return anon_resp.json()
+                                except ValueError:
+                                    pass
+                        except Exception as e:
+                            logger.warning(f"Anonymous fallback failed: {e}")
+
                     error_msg = response.text
                     try:
                         err_json = response.json()
@@ -964,8 +989,14 @@ class VastAIClient:
             inet_down = float(o.get("inet_down") or 0.0)
             inet_up = float(o.get("inet_up") or 0.0)
             geolocation = str(o.get("geolocation") or o.get("geolocode") or "Unknown")
-            machine_id = o.get("machine_id", "")
-            host_id = int(o.get("host_id") or 0) if o.get("host_id") else None
+            try:
+                machine_id = int(o.get("machine_id") or 0)
+            except (ValueError, TypeError):
+                machine_id = 0
+            try:
+                host_id = int(o.get("host_id") or 0) if o.get("host_id") else None
+            except (ValueError, TypeError):
+                host_id = None
             bundle_id = o.get("bundle_id") or o.get("id")
 
             now_str = get_kyiv_now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1049,8 +1080,14 @@ class VastAIClient:
             inet_down = float(o.get("inet_down") or 0.0)
             inet_up = float(o.get("inet_up") or 0.0)
             geolocation = str(o.get("geolocation") or o.get("geolocode") or "Unknown")
-            machine_id = o.get("machine_id", "")
-            host_id = int(o.get("host_id") or 0) if o.get("host_id") else None
+            try:
+                machine_id = int(o.get("machine_id") or 0)
+            except (ValueError, TypeError):
+                machine_id = 0
+            try:
+                host_id = int(o.get("host_id") or 0) if o.get("host_id") else None
+            except (ValueError, TypeError):
+                host_id = None
             bundle_id = o.get("bundle_id") or o.get("id")
             now_str = get_kyiv_now().strftime("%Y-%m-%d %H:%M:%S")
 
