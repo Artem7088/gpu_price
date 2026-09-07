@@ -8,6 +8,8 @@ import os
 import sys
 import hashlib
 
+import logging
+
 import datetime
 import io
 import pandas as pd
@@ -43,6 +45,9 @@ from vast_client import (
     init_history_db,
     KYIV_TZ,
 )
+
+logger = logging.getLogger(__name__)
+
 
 # Ensure database schema is initialized on start
 try:
